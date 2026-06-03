@@ -1,0 +1,20 @@
+import Link from 'next/link'
+
+function HeroHeaders() {
+  return (
+    <div className='mx-auto  w-full max-w-7xl text-center mt-32'>
+      <h1 className='mb-4 text-4xl font-bold md:text-7xl  text-center'>
+        Construindo relacionamentos duradouros por meio de experiências positivas
+      </h1>
+
+      <div className='flex items-stretch justify-center mt-8'>
+        <Link
+          href='/agenda'
+          className='mx-auto inline-block rounded-md bg-blue-800 hover:bg-blue-600 px-8 py-4 text-center font-semibold text-white'>
+          AGENDAR ONLINE
+        </Link>
+      </div>
+    </div>
+  )
+}
+export default HeroHeaders

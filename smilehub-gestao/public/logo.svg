@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="SmileHub">
+  <defs>
+    <linearGradient id="g" x1="32" y1="28" x2="222" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="64" fill="url(#g)"/>
+  <circle cx="84" cy="88" r="14" fill="white" opacity="0.96"/>
+  <circle cx="172" cy="88" r="14" fill="white" opacity="0.96"/>
+  <path d="M72 146c20 30 92 30 112 0" fill="none" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M88 176c18 16 62 16 80 0" fill="none" stroke="#BAE6FD" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <circle cx="54" cy="160" r="10" fill="#BAE6FD"/>
+  <circle cx="202" cy="160" r="10" fill="#BAE6FD"/>
+  <circle cx="128" cy="198" r="10" fill="#BAE6FD"/>
+  <path d="M63 158l38 28m92-28l-38 28m-27 10v-20" stroke="#BAE6FD" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+</svg>
