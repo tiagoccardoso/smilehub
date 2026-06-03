@@ -57,7 +57,7 @@ export function validateRegisterInput(input: RegisterInput) {
   const password = String(input.password ?? '')
   const confirmPassword = String(input.confirmPassword ?? '')
   const clinicName = String(input.clinicName ?? '').trim()
-  const planCode = input.planCode === 'personalizado' ? 'personalizado' : 'gestao'
+  const planCode: 'gestao' | 'personalizado' = input.planCode === 'personalizado' ? 'personalizado' : 'gestao'
 
   if (!name || !email || !password) {
     return { ok: false as const, status: 400, message: 'Nome, e-mail e senha são obrigatórios.' }
