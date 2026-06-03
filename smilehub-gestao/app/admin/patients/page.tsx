@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { sql } from '@/lib/neon'
 import { revalidatePath } from 'next/cache'
-import { patientStatus, requireClinicAccess } from '@/lib/clinic'
+import { patientStatus, requireClinicAccess, statusLabel } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { DeleteConfirmButton } from '../_components/delete-confirm-button'
@@ -95,7 +95,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         <input name='guardian_name' placeholder='Responsável' />
         <input name='address' className='md:col-span-2' placeholder='Endereço' />
         <textarea name='notes' className='md:col-span-2' placeholder='Observações' />
-        <select name='status'>{patientStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+        <select name='status'>{patientStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
         <SubmitButton label='Cadastrar paciente' />
       </form>
       <div className='overflow-auto rounded border'>
@@ -107,7 +107,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
                 <td className='p-2 font-medium'>{patient.full_name}</td>
                 <td className='p-2'>{patient.phone}</td>
                 <td className='p-2'>{patient.email || '-'}</td>
-                <td className='p-2'>{patient.status}</td>
+                <td className='p-2'>{statusLabel(patient.status)}</td>
                 <td className='space-y-2 p-2'>
                   <details className='rounded border p-2'>
                     <summary className='cursor-pointer font-semibold text-blue-700'>Editar</summary>
@@ -121,7 +121,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
                       <input name='guardian_name' defaultValue={patient.guardian_name || ''} placeholder='Responsável' />
                       <input name='address' className='md:col-span-2' defaultValue={patient.address || ''} placeholder='Endereço' />
                       <textarea name='notes' className='md:col-span-2' defaultValue={patient.notes || ''} placeholder='Observações' />
-                      <select name='status' defaultValue={patient.status}>{patientStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+                      <select name='status' defaultValue={patient.status}>{patientStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
                       <SubmitButton label='Atualizar' />
                     </form>
                   </details>

@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { AdminIcon } from '@/app/components/admin/AdminIcon'
 
 type NavItem = { href: string; label: string; icon: string; roles: string[] }
 
 const navItems: NavItem[] = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', roles: ['superadmin', 'admin', 'dentist', 'reception', 'financial'] },
+  { href: '/admin/dashboard', label: 'Painel inicial', icon: 'dashboard', roles: ['superadmin', 'admin', 'dentist', 'reception', 'financial'] },
   { href: '/admin/patients', label: 'Pacientes', icon: 'groups', roles: ['superadmin', 'admin', 'dentist', 'reception'] },
   { href: '/admin/agenda', label: 'Agenda', icon: 'calendar_month', roles: ['superadmin', 'admin', 'dentist', 'reception'] },
   { href: '/admin/records', label: 'Prontuário', icon: 'clinical_notes', roles: ['superadmin', 'admin', 'dentist'] },
@@ -47,7 +48,7 @@ export default function NavLinks() {
 
         return (
           <Link key={item.href} href={item.href} className={`admin-nav-link ${active ? 'admin-nav-link-active' : ''}`}>
-            <span className='material-symbols-outlined' aria-hidden='true'>{item.icon}</span>
+            <AdminIcon name={item.icon} className='admin-svg-icon' />
             <span>{item.label}</span>
           </Link>
         )

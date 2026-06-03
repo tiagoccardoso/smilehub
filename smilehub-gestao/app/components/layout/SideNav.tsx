@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import NavLinks from './NavLinks'
 import { useAuth } from '@/app/components/AppProvider'
 
@@ -12,19 +13,25 @@ function initialsFromEmail(value?: string | null) {
 }
 
 function SideNav() {
-  const { session, status } = useAuth()
+  const { session, status, logout } = useAuth()
+  const router = useRouter()
+
+  async function handleLogout() {
+    await logout()
+    router.replace('/admin')
+  }
 
   if (status !== 'authenticated') return null
 
   return (
     <div className='admin-side-inner'>
-      <Link className='admin-brand' href='/admin/dashboard' aria-label='Ir para o dashboard'>
+      <Link className='admin-brand' href='/admin/dashboard' aria-label='Ir para o painel inicial'>
         <span className='admin-brand-mark'>
           <Image alt='SmileHub' width={44} height={44} src='/smilehub.webp' />
         </span>
         <span className='admin-brand-copy'>
           <strong>SmileHub</strong>
-          <small>Management Suite</small>
+          <small>Gestão clínica</small>
         </span>
       </Link>
 
@@ -40,6 +47,10 @@ function SideNav() {
           <small>Ambiente seguro</small>
         </span>
       </div>
+
+      <button type='button' className='admin-logout-button' onClick={handleLogout}>
+        Sair
+      </button>
     </div>
   )
 }

@@ -1,0 +1,29 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 104 148' role='img' aria-label='Imagem realista de dente premolar upper'>
+  <defs>
+    <filter id='shadow' x='-20%' y='-20%' width='140%' height='145%'>
+      <feDropShadow dx='0' dy='5' stdDeviation='5' flood-color='#0f172a' flood-opacity='0.18'/>
+    </filter>
+    <linearGradient id='enamel' x1='18' y1='8' x2='94' y2='140' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#ffffff'/>
+      <stop offset='0.34' stop-color='#fbf8ed'/>
+      <stop offset='0.66' stop-color='#eee7d4'/>
+      <stop offset='1' stop-color='#d6c7ab'/>
+    </linearGradient>
+    <radialGradient id='shine' cx='34%' cy='25%' r='48%'>
+      <stop offset='0' stop-color='#ffffff' stop-opacity='0.95'/>
+      <stop offset='0.42' stop-color='#ffffff' stop-opacity='0.35'/>
+      <stop offset='1' stop-color='#ffffff' stop-opacity='0'/>
+    </radialGradient>
+    <linearGradient id='edge' x1='15' y1='10' x2='96' y2='138' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#c8bda9'/>
+      <stop offset='1' stop-color='#8a7962'/>
+    </linearGradient>
+  </defs>
+  <g transform=''>
+    <path d='M52 7 C31 7 17 23 17 45 C17 63 26 76 33 91 C40 106 38 129 45 141 C48 145 56 145 59 141 C66 129 64 106 71 91 C78 76 87 63 87 45 C87 23 73 7 52 7 Z' fill='url(#enamel)' stroke='url(#edge)' stroke-width='2.1' filter='url(#shadow)'/>
+    <path d='M52 7 C31 7 17 23 17 45 C17 63 26 76 33 91 C40 106 38 129 45 141 C48 145 56 145 59 141 C66 129 64 106 71 91 C78 76 87 63 87 45 C87 23 73 7 52 7 Z' fill='url(#shine)' opacity='0.9'/>
+    <path d='M31 44 C41 54 63 54 73 44 M34 62 C44 70 61 70 70 62 M42 89 C47 96 57 96 62 89 M44 103 C42 119 43 133 47 141 M60 103 C62 119 61 133 57 141' fill='none' stroke='#b8aa94' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' opacity='0.72'/>
+    <path d='M36 17 C24 29 24 53 32 68' fill='none' stroke='#ffffff' stroke-width='4.4' stroke-linecap='round' opacity='0.72'/>
+    <path d='M68 14 C82 27 80 57 70 78 C62 96 62 119 59 136' fill='none' stroke='#9b8c75' stroke-width='4' stroke-linecap='round' opacity='0.18'/>
+  </g>
+</svg>

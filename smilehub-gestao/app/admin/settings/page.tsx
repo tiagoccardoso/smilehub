@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/neon'
 import { getSiteContent, type SiteContentSection } from '@/lib/siteContent'
-import { requireClinicAccess } from '@/lib/clinic'
+import { requireClinicAccess, statusLabel } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
@@ -169,7 +169,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         </div>
         <div className='rounded-lg bg-slate-50 p-4 text-sm text-slate-700'>
           <p><strong>Plano atual:</strong> {clinic.plan_code || 'não definido'}</p>
-          <p><strong>Status da assinatura:</strong> {clinic.subscription_status || 'não definido'}</p>
+          <p><strong>Status da assinatura:</strong> {statusLabel(clinic.subscription_status)}</p>
           <p><strong>Fim do trial:</strong> {clinic.trial_ends_at ? new Date(clinic.trial_ends_at).toLocaleString('pt-BR') : 'não definido'}</p>
           <p><strong>Domínio principal:</strong> {clinic.primary_domain || 'não definido'}</p>
           <p><strong>Subdomínio padrão:</strong> {clinic.slug}.smilehub.com.br</p>

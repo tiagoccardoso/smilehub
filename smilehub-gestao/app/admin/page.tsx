@@ -2,7 +2,18 @@
 
 import { useAuth } from '@/app/components/AppProvider'
 import { useRouter } from 'next/navigation'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
+
+
+function RequiredLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className='required-label'>
+      {children}
+      <span className='required-mark' aria-hidden='true'>*</span>
+      <span className='required-hint'>Obrigatório</span>
+    </span>
+  )
+}
 
 function slugify(value: string) {
   return value
@@ -60,7 +71,30 @@ function Admin() {
     if (isLoading) return
 
     try {
-      if (!email || !password || (isRegistering && (!name || !clinicName))) return
+      if (!email.trim()) {
+        setError('Informe o e-mail para continuar.')
+        return
+      }
+      if (!password) {
+        setError('Informe a senha para continuar.')
+        return
+      }
+      if (isRegistering && !name.trim()) {
+        setError('Informe o nome completo do responsável.')
+        return
+      }
+      if (isRegistering && !clinicName.trim()) {
+        setError('Informe o nome da clínica.')
+        return
+      }
+      if (isRegistering && !acceptTerms) {
+        setError('É obrigatório aceitar os termos de uso.')
+        return
+      }
+      if (isRegistering && !acceptPrivacy) {
+        setError('É obrigatório aceitar a política de privacidade.')
+        return
+      }
       if (isRegistering && password !== confirmPassword) {
         setError('A confirmação de senha não confere.')
         return
@@ -140,7 +174,7 @@ function Admin() {
 
           {isRegistering && (
             <p className='mx-auto max-w-3xl text-center text-sm text-slate-600'>
-              Cadastre o responsável, a clínica e o plano inicial. O trial de 7 dias é criado automaticamente e os dados da clínica ficam isolados por clinic_id.
+              Cadastre o responsável, a clínica e o plano inicial. Os campos marcados com <span className='font-bold text-red-600'>*</span> são obrigatórios. O trial de 7 dias é criado automaticamente e os dados da clínica ficam isolados por clinic_id.
             </p>
           )}
 
@@ -148,7 +182,7 @@ function Admin() {
             <div className='rounded-xl border border-slate-200 p-4'>
               <h2 className='mb-3 font-semibold text-slate-900'>Dados do responsável</h2>
               <div className='grid gap-3 md:grid-cols-3'>
-                <label className='text-sm font-medium text-slate-700'>Nome completo<input disabled={isLoading} value={name} onChange={e => setName(e.target.value)} type='text' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
+                <label className='text-sm font-medium text-slate-700'><RequiredLabel>Nome completo</RequiredLabel><input disabled={isLoading} value={name} onChange={e => setName(e.target.value)} type='text' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
                 <label className='text-sm font-medium text-slate-700'>Telefone/WhatsApp<input disabled={isLoading} value={phone} onChange={e => setPhone(e.target.value)} type='tel' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' /></label>
                 <label className='text-sm font-medium text-slate-700'>Plano<select value={planCode} onChange={e => { const next = e.target.value as 'gestao' | 'personalizado'; setPlanCode(next); setWebsiteEnabled(next === 'personalizado') }} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2'><option value='gestao'>Gestão</option><option value='personalizado'>Personalizado</option></select></label>
               </div>
@@ -158,9 +192,9 @@ function Admin() {
           <div className={isRegistering ? 'rounded-xl border border-slate-200 p-4' : ''}>
             {isRegistering && <h2 className='mb-3 font-semibold text-slate-900'>Acesso</h2>}
             <div className={`grid gap-3 ${isRegistering ? 'md:grid-cols-3' : ''}`}>
-              <label htmlFor='email' className='text-sm font-medium text-slate-700'>E-mail<input disabled={isLoading} autoFocus={!isRegistering} value={email} onChange={e => setEmail(e.target.value)} type='email' id='email' name='email' placeholder='voce@empresa.com' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>
-              <label htmlFor='password' className='text-sm font-medium text-slate-700'>Senha<input disabled={isLoading} value={password} onChange={e => setPassword(e.target.value)} type='password' id='password' name='password' placeholder='Digite sua senha' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>
-              {isRegistering && <label htmlFor='confirm-password' className='text-sm font-medium text-slate-700'>Confirmar senha<input disabled={isLoading} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} type='password' id='confirm-password' name='confirmPassword' placeholder='Confirme a senha' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>}
+              <label htmlFor='email' className='text-sm font-medium text-slate-700'><RequiredLabel>E-mail</RequiredLabel><input disabled={isLoading} autoFocus={!isRegistering} value={email} onChange={e => setEmail(e.target.value)} type='email' id='email' name='email' placeholder='voce@empresa.com' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>
+              <label htmlFor='password' className='text-sm font-medium text-slate-700'><RequiredLabel>Senha</RequiredLabel><input disabled={isLoading} value={password} onChange={e => setPassword(e.target.value)} type='password' id='password' name='password' placeholder='Digite sua senha' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>
+              {isRegistering && <label htmlFor='confirm-password' className='text-sm font-medium text-slate-700'><RequiredLabel>Confirmar senha</RequiredLabel><input disabled={isLoading} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} type='password' id='confirm-password' name='confirmPassword' placeholder='Confirme a senha' className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100' required /></label>}
             </div>
           </div>
 
@@ -169,9 +203,9 @@ function Admin() {
               <div className='rounded-xl border border-slate-200 p-4'>
                 <h2 className='mb-3 font-semibold text-slate-900'>Dados da clínica</h2>
                 <div className='grid gap-3 md:grid-cols-3'>
-                  <label className='text-sm font-medium text-slate-700'>Nome da clínica<input value={clinicName} onChange={e => { setClinicName(e.target.value); if (!publicName) setPublicName(e.target.value) }} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
+                  <label className='text-sm font-medium text-slate-700'><RequiredLabel>Nome da clínica</RequiredLabel><input value={clinicName} onChange={e => { setClinicName(e.target.value); if (!publicName) setPublicName(e.target.value) }} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
                   <label className='text-sm font-medium text-slate-700'>Nome público<input value={publicName} onChange={e => setPublicName(e.target.value)} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' /></label>
-                  <label className='text-sm font-medium text-slate-700'>Slug/Subdomínio<input value={slug} onChange={e => { setSlugEdited(true); setSlug(slugify(e.target.value)) }} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
+                  <label className='text-sm font-medium text-slate-700'><RequiredLabel>Slug/Subdomínio</RequiredLabel><input value={slug} onChange={e => { setSlugEdited(true); setSlug(slugify(e.target.value)) }} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' required /></label>
                   <label className='text-sm font-medium text-slate-700'>CNPJ ou CPF<input value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' /></label>
                   <label className='text-sm font-medium text-slate-700'>Telefone da clínica<input value={clinicPhone} onChange={e => setClinicPhone(e.target.value)} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' /></label>
                   <label className='text-sm font-medium text-slate-700'>WhatsApp da clínica<input value={clinicWhatsapp} onChange={e => setClinicWhatsapp(e.target.value)} className='mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 py-2' /></label>
@@ -201,8 +235,8 @@ function Admin() {
               </div>
 
               <div className='grid gap-2 text-sm text-slate-700 md:grid-cols-2'>
-                <label className='flex items-center gap-2'><input type='checkbox' checked={acceptTerms} onChange={e => setAcceptTerms(e.target.checked)} required />Aceito os termos de uso</label>
-                <label className='flex items-center gap-2'><input type='checkbox' checked={acceptPrivacy} onChange={e => setAcceptPrivacy(e.target.checked)} required />Aceito a política de privacidade</label>
+                <label className='flex items-center gap-2'><input type='checkbox' checked={acceptTerms} onChange={e => setAcceptTerms(e.target.checked)} required aria-required='true' /><span>Aceito os termos de uso <span className='required-mark' aria-hidden='true'>*</span></span></label>
+                <label className='flex items-center gap-2'><input type='checkbox' checked={acceptPrivacy} onChange={e => setAcceptPrivacy(e.target.checked)} required aria-required='true' /><span>Aceito a política de privacidade <span className='required-mark' aria-hidden='true'>*</span></span></label>
               </div>
             </>
           )}

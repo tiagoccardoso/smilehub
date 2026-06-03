@@ -1,0 +1,29 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 158' role='img' aria-label='Imagem realista de dente canine upper'>
+  <defs>
+    <filter id='shadow' x='-20%' y='-20%' width='140%' height='145%'>
+      <feDropShadow dx='0' dy='5' stdDeviation='5' flood-color='#0f172a' flood-opacity='0.18'/>
+    </filter>
+    <linearGradient id='enamel' x1='18' y1='8' x2='94' y2='140' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#ffffff'/>
+      <stop offset='0.34' stop-color='#fbf8ed'/>
+      <stop offset='0.66' stop-color='#eee7d4'/>
+      <stop offset='1' stop-color='#d6c7ab'/>
+    </linearGradient>
+    <radialGradient id='shine' cx='34%' cy='25%' r='48%'>
+      <stop offset='0' stop-color='#ffffff' stop-opacity='0.95'/>
+      <stop offset='0.42' stop-color='#ffffff' stop-opacity='0.35'/>
+      <stop offset='1' stop-color='#ffffff' stop-opacity='0'/>
+    </radialGradient>
+    <linearGradient id='edge' x1='15' y1='10' x2='96' y2='138' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#c8bda9'/>
+      <stop offset='1' stop-color='#8a7962'/>
+    </linearGradient>
+  </defs>
+  <g transform=''>
+    <path d='M46 6 C30 7 18 22 17 45 C16 67 27 84 35 101 C40 113 41 139 46 151 C51 139 52 113 57 101 C65 84 76 67 75 45 C74 22 62 7 46 6 Z' fill='url(#enamel)' stroke='url(#edge)' stroke-width='2.1' filter='url(#shadow)'/>
+    <path d='M46 6 C30 7 18 22 17 45 C16 67 27 84 35 101 C40 113 41 139 46 151 C51 139 52 113 57 101 C65 84 76 67 75 45 C74 22 62 7 46 6 Z' fill='url(#shine)' opacity='0.9'/>
+    <path d='M30 45 C38 53 54 53 62 45 M35 82 C40 88 52 88 57 82 M46 96 C44 115 44 135 46 149' fill='none' stroke='#b8aa94' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' opacity='0.72'/>
+    <path d='M35 18 C25 30 24 54 31 70' fill='none' stroke='#ffffff' stroke-width='4.4' stroke-linecap='round' opacity='0.72'/>
+    <path d='M59 13 C71 26 72 54 62 77 C56 92 52 116 52 136' fill='none' stroke='#9b8c75' stroke-width='4' stroke-linecap='round' opacity='0.18'/>
+  </g>
+</svg>

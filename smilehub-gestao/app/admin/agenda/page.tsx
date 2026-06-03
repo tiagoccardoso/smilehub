@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/neon'
-import { appointmentStatus, requireClinicAccess } from '@/lib/clinic'
+import { appointmentStatus, requireClinicAccess, statusLabel } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { DeleteConfirmButton } from '../_components/delete-confirm-button'
@@ -152,7 +152,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         <select name='patient_id' required disabled={!canCreateAppointment}><option value=''>Paciente *</option>{patientOptions.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}</select>
         <select name='professional_id' disabled={!!loadError}><option value=''>Profissional</option>{professionalOptions.map(professional => <option key={professional.id} value={professional.id}>{professional.full_name}</option>)}</select>
         <select name='procedure_id' disabled={!!loadError}><option value=''>Procedimento</option>{procedureOptions.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}</select>
-        <select name='status' disabled={!!loadError}>{appointmentStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+        <select name='status' disabled={!!loadError}>{appointmentStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
         <input name='appointment_date' type='date' required disabled={!canCreateAppointment} />
         <input name='start_time' type='time' required disabled={!canCreateAppointment} />
         <input name='end_time' type='time' required disabled={!canCreateAppointment} />
@@ -164,7 +164,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           <thead className='bg-gray-50'><tr><th className='p-2 text-left'>Paciente</th><th className='p-2 text-left'>Profissional</th><th className='p-2 text-left'>Procedimento</th><th className='p-2 text-left'>Data/Hora</th><th className='p-2 text-left'>Status</th><th className='p-2 text-left'>Ações</th></tr></thead>
           <tbody>{(rows as any[]).map(row => (
             <tr key={row.id} className='border-t align-top'>
-              <td className='p-2 font-medium'>{row.patient_name}</td><td className='p-2'>{row.professional_name || '-'}</td><td className='p-2'>{row.procedure_name || '-'}</td><td className='p-2'>{row.appointment_date} {String(row.start_time).slice(0, 5)}-{String(row.end_time).slice(0, 5)}</td><td className='p-2'>{row.status}</td>
+              <td className='p-2 font-medium'>{row.patient_name}</td><td className='p-2'>{row.professional_name || '-'}</td><td className='p-2'>{row.procedure_name || '-'}</td><td className='p-2'>{row.appointment_date} {String(row.start_time).slice(0, 5)}-{String(row.end_time).slice(0, 5)}</td><td className='p-2'>{statusLabel(row.status)}</td>
               <td className='space-y-2 p-2'>
                 <details className='rounded border p-2'><summary className='cursor-pointer font-semibold text-blue-700'>Editar</summary>
                   <form action={saveAppointment} className='mt-3 grid gap-2 md:grid-cols-2'>
@@ -172,7 +172,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
                     <select name='patient_id' defaultValue={row.patient_id} required>{patientOptions.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}</select>
                     <select name='professional_id' defaultValue={row.professional_id || ''}><option value=''>Profissional</option>{professionalOptions.map(professional => <option key={professional.id} value={professional.id}>{professional.full_name}</option>)}</select>
                     <select name='procedure_id' defaultValue={row.procedure_id || ''}><option value=''>Procedimento</option>{procedureOptions.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}</select>
-                    <select name='status' defaultValue={row.status}>{appointmentStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+                    <select name='status' defaultValue={row.status}>{appointmentStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
                     <input name='appointment_date' type='date' defaultValue={row.appointment_date} required />
                     <input name='start_time' type='time' defaultValue={String(row.start_time).slice(0, 5)} required />
                     <input name='end_time' type='time' defaultValue={String(row.end_time).slice(0, 5)} required />

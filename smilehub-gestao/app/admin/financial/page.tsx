@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/neon'
-import { financeStatus, requireClinicAccess } from '@/lib/clinic'
+import { financeStatus, requireClinicAccess, statusLabel } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { DeleteConfirmButton } from '../_components/delete-confirm-button'
+import { AdminIcon } from '@/app/components/admin/AdminIcon'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const parseMoney = (value: string) => Number(value.replace(/\./g, '').replace(',', '.')) || 0
@@ -117,7 +118,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   return (
     <section className='space-y-8'>
       <div className='premium-hero'>
-        <span className='premium-kicker'><span className='material-symbols-outlined' aria-hidden='true'>account_balance_wallet</span>Gestão financeira</span>
+        <span className='premium-kicker'><AdminIcon name='account_balance_wallet' className='admin-svg-icon' />Gestão financeira</span>
         <h1>Financeiro da clínica</h1>
         <p>Controle lançamentos, vencimentos, recebimentos e histórico financeiro vinculado a pacientes e orçamentos.</p>
       </div>
@@ -125,7 +126,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
       <div className='premium-stat-grid'>
         {cards.map(card => (
           <article key={card.label} className='premium-stat-card'>
-            <span className='premium-stat-icon'><span className='material-symbols-outlined' aria-hidden='true'>{card.icon}</span></span>
+            <span className='premium-stat-icon'><AdminIcon name={card.icon} className='admin-svg-icon' /></span>
             <p>{card.label}</p>
             <strong>{card.value}</strong>
           </article>
@@ -141,7 +142,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         <input name='payment_method' placeholder='Forma de pagamento' />
         <input name='due_date' type='date' />
         <input name='amount' required placeholder='Valor ex: 100,00' />
-        <select name='status'>{financeStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+        <select name='status'>{financeStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
         <SubmitButton label='Cadastrar lançamento' />
       </form>
 
@@ -153,7 +154,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
               <td className='font-medium'>{entry.patient_name}</td>
               <td>{entry.description}</td>
               <td>{formatDate(entry.due_date)}</td>
-              <td><span className='premium-status'>{entry.status}</span></td>
+              <td><span className='premium-status'>{statusLabel(entry.status)}</span></td>
               <td className='font-semibold text-[#041627]'>{currency.format(Number(entry.amount))}</td>
               <td className='space-y-2'>
                 <details className='p-3'>
@@ -166,7 +167,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
                     <input name='payment_method' defaultValue={entry.payment_method || ''} />
                     <input name='due_date' type='date' defaultValue={entry.due_date || ''} />
                     <input name='amount' defaultValue={String(entry.amount).replace('.', ',')} />
-                    <select name='status' defaultValue={entry.status}>{financeStatus.map(status => <option key={status} value={status}>{status}</option>)}</select>
+                    <select name='status' defaultValue={entry.status}>{financeStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
                     <SubmitButton label='Atualizar' />
                   </form>
                 </details>

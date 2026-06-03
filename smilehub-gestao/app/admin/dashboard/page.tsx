@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { requireClinicAccess } from '@/lib/clinic'
 import { sql } from '@/lib/neon'
+import { AdminIcon } from '@/app/components/admin/AdminIcon'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR')
@@ -64,21 +65,21 @@ export default async function DashboardPage() {
   return (
     <section className='space-y-8'>
       <div className='premium-hero'>
-        <span className='premium-kicker'><span className='material-symbols-outlined' aria-hidden='true'>health_and_safety</span>Central operacional</span>
-        <h1>Dashboard premium da clínica</h1>
+        <span className='premium-kicker'><AdminIcon name='health_and_safety' className='admin-svg-icon' />Central operacional</span>
+        <h1>Painel premium da clínica</h1>
         <p>
           Acompanhe agenda, pacientes, equipe e financeiro com uma visão executiva do SmileHub, usando dados reais do banco da clínica.
         </p>
         <div className='premium-actions'>
-          <Link className='premium-button-primary' href='/admin/agenda'><span className='material-symbols-outlined' aria-hidden='true'>add</span>Novo agendamento</Link>
-          <Link className='premium-button-secondary' href='/admin/patients'><span className='material-symbols-outlined' aria-hidden='true'>person_add</span>Novo paciente</Link>
+          <Link className='premium-button-primary' href='/admin/agenda'><AdminIcon name='add' className='admin-svg-icon' />Novo agendamento</Link>
+          <Link className='premium-button-secondary' href='/admin/patients'><AdminIcon name='person_add' className='admin-svg-icon' />Novo paciente</Link>
         </div>
       </div>
 
       <div className='premium-stat-grid'>
         {stats.map(card => (
           <article key={card.label} className='premium-stat-card'>
-            <span className='premium-stat-icon'><span className='material-symbols-outlined' aria-hidden='true'>{card.icon}</span></span>
+            <span className='premium-stat-icon'><AdminIcon name={card.icon} className='admin-svg-icon' /></span>
             <p>{card.label}</p>
             <strong>{card.value}</strong>
           </article>
@@ -141,7 +142,7 @@ export default async function DashboardPage() {
           <div className='premium-stat-grid'>
             {secondaryStats.map(card => (
               <div key={card.label} className='rounded-[22px] border border-slate-200 bg-white p-5'>
-                <span className='premium-stat-icon'><span className='material-symbols-outlined' aria-hidden='true'>{card.icon}</span></span>
+                <span className='premium-stat-icon'><AdminIcon name={card.icon} className='admin-svg-icon' /></span>
                 <p className='mt-3 text-sm font-bold text-gray-500'>{card.label}</p>
                 <strong className='mt-1 block text-2xl font-extrabold text-[#041627]'>{card.value}</strong>
               </div>

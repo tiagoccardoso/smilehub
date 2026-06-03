@@ -9,6 +9,31 @@ export const appointmentStatus = ['scheduled','confirmed','in_progress','complet
 export const budgetStatus = ['draft','sent','approved','rejected','canceled'] as const
 export const financeStatus = ['pending','paid','overdue','canceled'] as const
 
+export const statusLabels: Record<string, string> = {
+  active: 'Ativo',
+  inactive: 'Inativo',
+  scheduled: 'Agendado',
+  confirmed: 'Confirmado',
+  in_progress: 'Em andamento',
+  completed: 'Concluído',
+  canceled: 'Cancelado',
+  no_show: 'Não compareceu',
+  draft: 'Rascunho',
+  sent: 'Enviado',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  pending: 'Pendente',
+  paid: 'Pago',
+  overdue: 'Vencido',
+  trialing: 'Em teste',
+  past_due: 'Pagamento pendente',
+}
+
+export function statusLabel(status?: string | null) {
+  if (!status) return 'Não definido'
+  return statusLabels[status] ?? status
+}
+
 export type ClinicRow = {
   id: string
   name: string
