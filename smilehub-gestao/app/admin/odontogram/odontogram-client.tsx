@@ -5,16 +5,17 @@ import { useRouter } from 'next/navigation'
 import { SubmitButton } from '../_components/submit-button'
 import {
   ODONTOGRAM_STATUS,
+  ODONTOGRAM_STATUS_LEGEND,
   ODONTOGRAM_STATUS_STYLES,
+  ODONTOGRAM_TEETH,
   type OdontogramEntry,
   type PatientOption,
   type ProcedureOption,
   type ToothCode,
+  type ToothConfig,
 } from './odontogram-data'
 
 type Action = (formData: FormData) => void | Promise<void>
-type Arch = 'upper' | 'lower'
-type ToothKind = 'incisor' | 'canine' | 'premolar' | 'molar'
 
 type OdontogramClientProps = {
   patients: PatientOption[]
@@ -25,11 +26,6 @@ type OdontogramClientProps = {
   deleteAction: Action
 }
 
-const upperRight = ['18', '17', '16', '15', '14', '13', '12', '11'] as ToothCode[]
-const upperLeft = ['21', '22', '23', '24', '25', '26', '27', '28'] as ToothCode[]
-const lowerRight = ['48', '47', '46', '45', '44', '43', '42', '41'] as ToothCode[]
-const lowerLeft = ['31', '32', '33', '34', '35', '36', '37', '38'] as ToothCode[]
-
 const emptyStatusStyle = {
   dot: 'bg-slate-300',
   bg: 'bg-white',
@@ -38,24 +34,45 @@ const emptyStatusStyle = {
   ring: 'ring-slate-200',
 }
 
+const upperTeeth = ODONTOGRAM_TEETH.filter(tooth => tooth.arch === 'upper')
+const lowerTeeth = ODONTOGRAM_TEETH.filter(tooth => tooth.arch === 'lower')
+const teethByNumber = new Map<ToothCode, ToothConfig>(ODONTOGRAM_TEETH.map(tooth => [tooth.number, tooth] as const))
+
 function normalizeDate(value: string | null) {
   if (!value) return ''
   return value.slice(0, 10)
 }
 
-function toothKind(toothCode: ToothCode): ToothKind {
-  if (['18', '17', '16', '26', '27', '28', '48', '47', '46', '36', '37', '38'].includes(toothCode)) return 'molar'
-  if (['15', '14', '24', '25', '45', '44', '34', '35'].includes(toothCode)) return 'premolar'
-  if (['13', '23', '43', '33'].includes(toothCode)) return 'canine'
-  return 'incisor'
+function normalizeClinicalText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
 }
 
-function toothImageSrc(toothCode: ToothCode, arch: Arch) {
-  return `/odontogram/teeth/${arch}-${toothKind(toothCode)}.svg`
+function isExtractedEntry(entry?: OdontogramEntry) {
+  if (!entry) return false
+  const searchableText = normalizeClinicalText([
+    entry.condition,
+    entry.procedure_name,
+    entry.planned_procedure,
+    entry.performed_procedure,
+    entry.notes,
+  ].filter(Boolean).join(' '))
+
+  return /\b(extracao|extraido|exodontia|extrair|exodontico)\b/.test(searchableText)
 }
 
 function statusLabel(status: string) {
   return ODONTOGRAM_STATUS.find(item => item.value === status)?.label ?? status
+}
+
+function toothVisualStatus(activeEntry?: OdontogramEntry) {
+  if (!activeEntry) return { key: 'healthy', label: 'Saudável' }
+  if (isExtractedEntry(activeEntry)) return { key: 'extracted', label: 'Extraído' }
+  if (activeEntry.status === 'canceled') return { key: 'observation', label: 'Observação' }
+
+  return { key: activeEntry.status, label: statusLabel(activeEntry.status) }
 }
 
 function statusStyle(status?: string | null) {
@@ -63,43 +80,45 @@ function statusStyle(status?: string | null) {
 }
 
 function ToothButton({
-  code,
-  arch,
+  tooth,
   activeEntry,
   selected,
   disabled,
   onSelect,
 }: {
-  code: ToothCode
-  arch: Arch
+  tooth: ToothConfig
   activeEntry?: OdontogramEntry
   selected: boolean
   disabled: boolean
   onSelect: (code: ToothCode) => void
 }) {
   const hasEntry = Boolean(activeEntry)
-  const style = statusStyle(activeEntry?.status)
-  const label = activeEntry ? statusLabel(activeEntry.status) : 'Sem procedimento'
+  const visualStatus = toothVisualStatus(activeEntry)
+  const style = statusStyle(visualStatus.key)
 
   return (
     <button
       type='button'
       disabled={disabled}
-      onClick={() => onSelect(code)}
-      className={`group relative flex min-w-12 flex-col items-center overflow-visible rounded-2xl border p-2 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 ${hasEntry ? `${style.bg} ${style.border}` : 'border-slate-200 bg-gradient-to-b from-white to-slate-50'} ${selected ? `ring-4 ${style.ring} border-blue-500 shadow-lg` : 'shadow-sm'}`}
-      aria-label={`Selecionar dente ${code}. Status: ${label}`}
+      onClick={() => onSelect(tooth.number)}
+      className={`group relative flex min-h-[10.75rem] min-w-[4.75rem] flex-col items-center justify-between overflow-visible rounded-2xl border px-2 py-2 transition duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[11.5rem] ${hasEntry ? `${style.bg} ${style.border}` : 'border-slate-200 bg-gradient-to-b from-white to-slate-50'} ${selected ? `ring-4 ${style.ring} border-blue-500 shadow-lg` : 'shadow-sm'}`}
+      aria-label={`Selecionar dente ${tooth.number}. Status: ${visualStatus.label}`}
       aria-pressed={selected}
-      data-tooth-status={activeEntry?.status ?? 'empty'}
+      data-tooth-status={visualStatus.key}
     >
       <span className={`absolute right-2 top-2 h-3 w-3 rounded-full ${style.dot}`} aria-hidden='true' />
-      <img
-        src={toothImageSrc(code, arch)}
-        alt={`Imagem realista do dente ${code}`}
-        className='odontogram-tooth-image h-20 max-h-28 w-full max-w-[5.4rem] object-contain transition duration-200 group-hover:scale-105 sm:h-24 lg:h-28'
-      />
-      <span className='mt-1 text-xs font-bold text-slate-800'>{code}</span>
-      <span className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold leading-tight ${hasEntry ? `${style.bg} ${style.text}` : 'bg-slate-100 text-slate-500'}`}>
-        {label}
+      {tooth.arch === 'upper' ? <span className='text-xs font-bold text-slate-800'>{tooth.number}</span> : <span className='h-4' aria-hidden='true' />}
+      <span className='flex min-h-[6.6rem] w-full items-center justify-center sm:min-h-[7.5rem]'>
+        <img
+          src={tooth.image}
+          alt={`Imagem realista do dente ${tooth.number}`}
+          className='odontogram-tooth-image h-24 max-h-32 w-full max-w-[5.5rem] object-contain transition duration-200 group-hover:scale-105 sm:h-28'
+          draggable={false}
+        />
+      </span>
+      {tooth.arch === 'lower' ? <span className='text-xs font-bold text-slate-800'>{tooth.number}</span> : null}
+      <span className={`mt-1 rounded-full px-2 py-0.5 text-center text-[10px] font-extrabold leading-tight ${style.bg} ${style.text}`}>
+        {visualStatus.label}
       </span>
     </button>
   )
@@ -109,8 +128,8 @@ function StatusLegend() {
   return (
     <div className='rounded-2xl border border-slate-200 bg-white p-3 shadow-sm'>
       <p className='text-xs font-extrabold uppercase tracking-wide text-slate-500'>Legenda de status</p>
-      <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
-        {ODONTOGRAM_STATUS.map(status => {
+      <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6'>
+        {ODONTOGRAM_STATUS_LEGEND.map(status => {
           const style = statusStyle(status.value)
           return (
             <div key={status.value} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${style.bg} ${style.border} ${style.text}`}>
@@ -120,45 +139,48 @@ function StatusLegend() {
           )
         })}
       </div>
-      <p className='mt-2 text-xs text-slate-500'>Além da cor, cada dente exibe o texto do status para facilitar a leitura e acessibilidade.</p>
+      <p className='mt-2 text-xs text-slate-500'>Dentes sem registro aparecem como saudáveis. Registros com termos como extração, extraído ou exodontia recebem o destaque visual de Extraído sem alterar a estrutura do banco de dados.</p>
     </div>
   )
 }
 
-function Quadrant({
+function ArcSection({
   title,
   teeth,
-  arch,
   entriesByTooth,
   selectedTooth,
   disabled,
   onSelect,
 }: {
   title: string
-  teeth: ToothCode[]
-  arch: Arch
+  teeth: readonly ToothConfig[]
   entriesByTooth: Map<string, OdontogramEntry[]>
   selectedTooth: ToothCode | null
   disabled: boolean
   onSelect: (code: ToothCode) => void
 }) {
   return (
-    <div className='rounded-2xl border border-slate-200 bg-white p-3 shadow-sm'>
-      <p className='mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-slate-500'>{title}</p>
-      <div className='grid grid-cols-4 gap-2 sm:grid-cols-8 lg:grid-cols-4 2xl:grid-cols-8'>
-        {teeth.map(code => (
-          <ToothButton
-            key={code}
-            code={code}
-            arch={arch}
-            activeEntry={entriesByTooth.get(code)?.[0]}
-            selected={selectedTooth === code}
-            disabled={disabled}
-            onSelect={onSelect}
-          />
-        ))}
+    <section className='rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4'>
+      <div className='mb-4 flex items-center gap-3'>
+        <span className='h-px flex-1 bg-slate-200' />
+        <h2 className='text-center text-xs font-extrabold uppercase tracking-[0.2em] text-slate-600 sm:text-sm'>{title}</h2>
+        <span className='h-px flex-1 bg-slate-200' />
       </div>
-    </div>
+      <div className='overflow-x-auto pb-2'>
+        <div className='grid min-w-[58rem] grid-cols-[repeat(16,minmax(3.5rem,1fr))] gap-2 xl:min-w-0'>
+          {teeth.map(tooth => (
+            <ToothButton
+              key={tooth.number}
+              tooth={tooth}
+              activeEntry={entriesByTooth.get(tooth.number)?.[0]}
+              selected={selectedTooth === tooth.number}
+              disabled={disabled}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -166,6 +188,7 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
   const router = useRouter()
   const [selectedTooth, setSelectedTooth] = useState<ToothCode | null>(null)
   const selectedPatient = patients.find(patient => patient.id === selectedPatientId)
+  const selectedToothConfig = selectedTooth ? teethByNumber.get(selectedTooth) : null
 
   const entriesByTooth = useMemo(() => {
     const grouped = new Map<string, OdontogramEntry[]>()
@@ -197,15 +220,8 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
 
       <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]'>
         <div className='odontogram-map-panel space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5'>
-          <div className='grid gap-4 lg:grid-cols-2'>
-            <Quadrant title='Superior direito' teeth={upperRight} arch='upper' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
-            <Quadrant title='Superior esquerdo' teeth={upperLeft} arch='upper' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
-          </div>
-          <div className='mx-auto h-px max-w-4xl bg-slate-300' />
-          <div className='grid gap-4 lg:grid-cols-2'>
-            <Quadrant title='Inferior direito' teeth={lowerRight} arch='lower' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
-            <Quadrant title='Inferior esquerdo' teeth={lowerLeft} arch='lower' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
-          </div>
+          <ArcSection title='Arcada superior' teeth={upperTeeth} entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
+          <ArcSection title='Arcada inferior' teeth={lowerTeeth} entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
           <StatusLegend />
         </div>
 
@@ -224,12 +240,13 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
           </dl>
           <div className='mt-4 space-y-2'>
             {entries.length ? entries.slice(0, 6).map(entry => {
-              const style = statusStyle(entry.status)
+              const visualStatus = toothVisualStatus(entry)
+              const style = statusStyle(visualStatus.key)
               return (
                 <button key={entry.id} type='button' onClick={() => setSelectedTooth(entry.tooth_code)} className={`w-full rounded-xl border p-3 text-left text-sm transition hover:-translate-y-0.5 hover:shadow-sm ${style.border} ${style.bg}`}>
                   <span className='font-semibold'>Dente {entry.tooth_code}</span>
                   <span className='block text-slate-600'>{entry.procedure_name || entry.planned_procedure || 'Procedimento sem descrição'}</span>
-                  <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${style.bg} ${style.text}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{statusLabel(entry.status)}</span>
+                  <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${style.bg} ${style.text}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{visualStatus.label}</span>
                 </button>
               )
             }) : <p className='rounded-xl bg-slate-50 p-3 text-sm text-slate-600'>Nenhum procedimento registrado para o filtro atual.</p>}
@@ -241,10 +258,17 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
         <div className='fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4' role='dialog' aria-modal='true' aria-labelledby='odontogram-modal-title'>
           <div className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl'>
             <div className='flex items-start justify-between gap-4'>
-              <div>
-                <p className='text-sm font-semibold uppercase tracking-wide text-blue-700'>Dente selecionado</p>
-                <h2 id='odontogram-modal-title' className='text-2xl font-bold'>Dente {selectedTooth}</h2>
-                <p className='text-sm text-slate-600'>{selectedPatient?.full_name}</p>
+              <div className='flex items-start gap-3'>
+                {selectedToothConfig ? (
+                  <span className='flex h-20 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2'>
+                    <img src={selectedToothConfig.image} alt={`Imagem realista do dente ${selectedTooth}`} className='h-full w-full object-contain' draggable={false} />
+                  </span>
+                ) : null}
+                <div>
+                  <p className='text-sm font-semibold uppercase tracking-wide text-blue-700'>Dente selecionado</p>
+                  <h2 id='odontogram-modal-title' className='text-2xl font-bold'>Dente {selectedTooth}</h2>
+                  <p className='text-sm text-slate-600'>{selectedPatient?.full_name}</p>
+                </div>
               </div>
               <button type='button' onClick={() => setSelectedTooth(null)} className='rounded-full border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50'>Fechar</button>
             </div>
@@ -308,11 +332,12 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
                 <h3 className='font-semibold'>Histórico deste dente</h3>
                 <ul className='mt-2 space-y-2 text-sm'>
                   {selectedEntries.slice(1).map(entry => {
-                    const style = statusStyle(entry.status)
+                    const visualStatus = toothVisualStatus(entry)
+                    const style = statusStyle(visualStatus.key)
                     return (
                       <li key={entry.id} className={`rounded-xl border bg-white p-3 ${style.border}`}>
                         <span className='font-semibold'>{entry.procedure_name || entry.planned_procedure}</span>
-                        <span className={`mt-1 block text-xs font-bold ${style.text}`}>{statusLabel(entry.status)} · {normalizeDate(entry.scheduled_date) || 'Sem data prevista'}</span>
+                        <span className={`mt-1 block text-xs font-bold ${style.text}`}>{visualStatus.label} · {normalizeDate(entry.scheduled_date) || 'Sem data prevista'}</span>
                       </li>
                     )
                   })}
