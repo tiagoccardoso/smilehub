@@ -23,6 +23,7 @@ function SideNav() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState('')
   const logoUrl = session?.clinic?.logoUrl || '/smilehub.webp'
+  const hasAccess = Boolean(session?.subscription?.hasAccess)
 
   async function handleLogout() {
     await logout()
@@ -64,9 +65,9 @@ function SideNav() {
           <Image alt='SmileHub' width={44} height={44} src={logoUrl} />
         </button>
         <input ref={logoInputRef} type='file' accept='image/jpeg,image/png,image/webp,image/gif' className='sr-only' onChange={handleLogoChange} />
-        <Link className='admin-brand-copy' href='/admin/dashboard' aria-label='Ir para o painel inicial'>
+        <Link className='admin-brand-copy' href={hasAccess ? '/admin/dashboard' : '/admin/subscriptions'} aria-label='Ir para o painel inicial'>
           <strong>{session?.clinic?.name || 'SmileHub'}</strong>
-          <small>{logoUploading ? 'Enviando logo...' : 'Gestão clínica'}</small>
+          <small>{logoUploading ? 'Enviando logo...' : hasAccess ? 'Gestão clínica' : 'Assinatura necessária'}</small>
         </Link>
       </div>
       {logoError ? <p className='rounded-xl border border-red-300 bg-red-50/10 p-2 text-xs text-red-100'>{logoError}</p> : null}
@@ -74,6 +75,7 @@ function SideNav() {
       <div className='admin-sidebar-section'>
         <span className='admin-sidebar-eyebrow'>Operação clínica</span>
         <NavLinks />
+        {!hasAccess ? <p className='rounded-2xl border border-white/10 bg-white/10 p-3 text-xs font-semibold leading-relaxed text-white/75'>Acesso aos módulos bloqueado. Acesse Assinaturas para ativar o teste grátis ou contratar um plano.</p> : null}
       </div>
 
       <div className='admin-user-card'>

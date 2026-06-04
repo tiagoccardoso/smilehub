@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentAdminProfile } from "@/lib/auth";
 import { sql } from "@/lib/neon";
 import type { AdminRole } from "@/lib/types";
+import { getSubscriptionAccess } from "@/lib/subscription";
 import {
   getDefaultPublicSiteDomain,
   normalizeDomain,
@@ -138,6 +139,15 @@ export async function getCurrentClinic(): Promise<ClinicRow | null> {
 export async function requireCurrentClinic(): Promise<ClinicRow> {
   const clinic = await getCurrentClinic();
   if (!clinic) redirect("/admin?error=Clinica+nao+vinculada");
+  const access = getSubscriptionAccess({
+    id: '',
+    clinic_id: clinic.id,
+    plan_code: clinic.plan_code || 'gestao',
+    status: clinic.subscription_status || 'incomplete',
+    trial_ends_at: clinic.trial_ends_at,
+    current_period_ends_at: clinic.current_period_ends_at,
+  });
+  if (!access.hasAccess) redirect(`/admin/subscriptions?bloqueado=1&motivo=${access.reason}`);
   return clinic as ClinicRow;
 }
 

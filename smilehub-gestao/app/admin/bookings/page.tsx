@@ -25,13 +25,14 @@ function Bookings() {
   const [pages, setPages] = useState<number>()
   const debouncedSearchTerm = useDebounce(search, 400)
   const router = useRouter()
-  const { status } = useAuth()
+  const { status, session } = useAuth()
 
   useEffect(() => {
     setPage(1)
   }, [debouncedSearchTerm])
 
   useEffect(() => {
+    if (status !== 'authenticated' || !session?.subscription?.hasAccess) return
     async function fetchBookings() {
       try {
         setIsLoading(true)
@@ -50,15 +51,16 @@ function Bookings() {
       }
     }
     fetchBookings()
-  }, [filter, debouncedSearchTerm, page])
+  }, [filter, debouncedSearchTerm, page, session?.subscription?.hasAccess, status])
 
   useEffect(() => {
     document.title = 'Agendamentos | Admin | SmileHub'
   }, [])
 
-  if (status === 'unauthenticated') {
-    router.push('/admin')
-  }
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/admin')
+    if (status === 'authenticated' && !session?.subscription?.hasAccess) router.replace('/admin/subscriptions?bloqueado=1')
+  }, [router, session?.subscription?.hasAccess, status])
 
   return (
     <section className='grid gap-4'>

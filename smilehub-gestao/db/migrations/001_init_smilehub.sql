@@ -104,13 +104,27 @@ create table public.clinic_subscriptions (
   id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references public.clinics(id) on delete cascade,
   plan_code text not null default 'gestao' check (plan_code in ('gestao','personalizado','mensal','anual')),
-  status text not null default 'trialing' check (status in ('trialing','active','past_due','canceled','incomplete','unpaid')),
+  status text not null default 'trialing' check (status in ('trialing','active','past_due','canceled','incomplete','incomplete_expired','unpaid','paused')),
+  trial_started_at timestamptz,
   trial_ends_at timestamptz,
   current_period_ends_at timestamptz,
   stripe_customer_id text,
-  stripe_subscription_id text,
+  stripe_subscription_id text unique,
+  stripe_price_id text,
+  stripe_checkout_session_id text,
+  canceled_at timestamptz,
+  cancel_at_period_end boolean not null default false,
+  updated_by_webhook_event_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table public.stripe_webhook_events (
+  event_id text primary key,
+  event_type text not null,
+  received_at timestamptz not null default now(),
+  processed_at timestamptz,
+  processing_error text
 );
 
 create table public.patients (
@@ -304,6 +318,8 @@ create table public.services (
 create index user_email_lookup_idx on public."user" (email);
 create index users_email_lookup_idx on public.users (email);
 create index clinic_users_user_idx on public.clinic_users (user_id);
+create index clinic_subscriptions_clinic_created_idx on public.clinic_subscriptions (clinic_id, created_at desc);
+create index clinic_subscriptions_stripe_customer_idx on public.clinic_subscriptions (stripe_customer_id);
 create index clinic_domains_normalized_domain_idx on public.clinic_domains (normalized_domain);
 create index patients_clinic_idx on public.patients (clinic_id, created_at desc);
 create index professionals_clinic_idx on public.professionals (clinic_id, is_active, full_name);
@@ -358,8 +374,8 @@ values
   ('00000000-0000-0000-0000-000000000001', 'custom_domain', true)
 on conflict (clinic_id, feature_code) do update set enabled = excluded.enabled;
 
-insert into public.clinic_subscriptions (clinic_id, plan_code, status, trial_ends_at)
-values ('00000000-0000-0000-0000-000000000001', 'personalizado', 'trialing', now() + interval '7 days')
+insert into public.clinic_subscriptions (clinic_id, plan_code, status, trial_started_at, trial_ends_at)
+values ('00000000-0000-0000-0000-000000000001', 'personalizado', 'trialing', now(), now() + interval '7 days')
 on conflict do nothing;
 
 insert into public.site_content_settings (clinic_id, section, title, subtitle, body, extra)

@@ -199,8 +199,8 @@ export async function createUserWithClinic(payload: ClinicRegistrationPayload) {
       returning id
     ),
     subscription as (
-      insert into public.clinic_subscriptions (clinic_id, plan_code, status, trial_ends_at)
-      select new_clinic.id, ${planCode}, 'trialing', now() + interval '7 days'
+      insert into public.clinic_subscriptions (clinic_id, plan_code, status, trial_started_at, trial_ends_at)
+      select new_clinic.id, ${planCode}, 'trialing', now(), now() + interval '7 days'
         from new_clinic
       returning id
     ),

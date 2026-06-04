@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { AdminIcon } from '@/app/components/admin/AdminIcon'
+import { useAuth } from '@/app/components/AppProvider'
 
-type NavItem = { href: string; label: string; icon: string; roles: string[] }
+type NavItem = { href: string; label: string; icon: string; roles: string[]; alwaysEnabled?: boolean }
 
 const navItems: NavItem[] = [
   { href: '/admin/dashboard', label: 'Painel inicial', icon: 'dashboard', roles: ['superadmin', 'admin', 'dentist', 'reception', 'financial'] },
@@ -21,6 +22,7 @@ const navItems: NavItem[] = [
   { href: '/admin/reports', label: 'Relatórios', icon: 'monitoring', roles: ['superadmin', 'admin', 'financial'] },
   { href: '/admin/settings', label: 'Configurações', icon: 'tune', roles: ['superadmin', 'admin'] },
   { href: '/admin/users', label: 'Usuários', icon: 'manage_accounts', roles: ['superadmin'] },
+  { href: '/admin/subscriptions', label: 'Assinaturas', icon: 'workspace_premium', roles: ['superadmin', 'admin', 'dentist', 'reception', 'financial'], alwaysEnabled: true },
 ]
 
 function isActive(pathname: string, href: string) {
@@ -30,16 +32,13 @@ function isActive(pathname: string, href: string) {
 
 export default function NavLinks() {
   const pathname = usePathname()
-  const [role, setRole] = useState<string>('')
+  const { session } = useAuth()
+  const role = session?.role || ''
+  const hasAccess = Boolean(session?.subscription?.hasAccess)
 
-  useEffect(() => {
-    fetch('/api/me')
-      .then(response => response.ok ? response.json() : null)
-      .then(data => data && setRole(data.role))
-      .catch(() => setRole(''))
-  }, [])
-
-  const filtered = useMemo(() => navItems.filter(item => item.roles.includes(role)), [role])
+  const filtered = useMemo(() => {
+    return navItems.filter(item => item.roles.includes(role) && (hasAccess || item.alwaysEnabled))
+  }, [hasAccess, role])
 
   return (
     <nav className='admin-nav' aria-label='Navegação administrativa'>

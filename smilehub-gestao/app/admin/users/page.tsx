@@ -15,10 +15,11 @@ function UserList() {
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const triggerRefresh = () => setRefreshKey(refreshKey + 1)
-  const { status } = useAuth()
+  const { status, session } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
+    if (status !== 'authenticated' || !session?.subscription?.hasAccess) return
     async function fetchUsers() {
       try {
         setIsLoading(true)
@@ -36,7 +37,7 @@ function UserList() {
       }
     }
     fetchUsers()
-  }, [refreshKey])
+  }, [refreshKey, session?.subscription?.hasAccess, status])
 
   async function handleDeleteClick(_id: string) {
     try {
@@ -49,9 +50,10 @@ function UserList() {
     }
   }
 
-  if (status === 'unauthenticated') {
-    router.push('/')
-  }
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/admin')
+    if (status === 'authenticated' && !session?.subscription?.hasAccess) router.replace('/admin/subscriptions?bloqueado=1')
+  }, [router, session?.subscription?.hasAccess, status])
 
   useEffect(() => {
     document.title = 'Usuários | Admin | SmileHub'

@@ -30,6 +30,7 @@ const iconPaths: Record<string, SvgPath> = {
   event_available: ['M7 3v3M17 3v3M5 8h14', 'M6.5 5h11A2.5 2.5 0 0 1 20 7.5v10A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-10A2.5 2.5 0 0 1 6.5 5Z', 'M8 14l2.5 2.5L16 11'],
   schedule: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', 'M12 7v5l3 2'],
   warning: ['M12 4 21 20H3L12 4Z', 'M12 9v5M12 17h.01'],
+  workspace_premium: ['M12 3.5l2.2 4.5 4.9.7-3.5 3.4.8 4.8L12 14.6 7.6 17l.8-4.8L4.9 8.8l4.9-.7L12 3.5Z', 'M8 20h8M10 17.5h4'],
 }
 
 export function AdminIcon({ name, className = '', title }: AdminIconProps) {

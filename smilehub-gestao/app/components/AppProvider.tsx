@@ -18,6 +18,18 @@ type AdminSession = {
   phone?: string | null
   avatarUrl?: string | null
   clinic?: { id: string; name: string; logoUrl?: string | null } | null
+  subscription?: {
+    planCode?: string | null
+    planLabel?: string | null
+    status?: string | null
+    statusLabel?: string | null
+    trialEndsAt?: string | null
+    currentPeriodEndsAt?: string | null
+    hasAccess: boolean
+    reason?: string | null
+    message?: string | null
+    daysLeft?: number | null
+  } | null
 }
 
 type AuthContextValue = {
@@ -39,7 +51,7 @@ function AppProvider({ children }: { children: ReactNode }) {
 
     if (res.ok) {
       const data = await res.json()
-      setSession({ id: data.id, user: data.user, email: data.email, role: data.role, phone: data.phone, avatarUrl: data.avatarUrl, clinic: data.clinic ?? null })
+      setSession({ id: data.id, user: data.user, email: data.email, role: data.role, phone: data.phone, avatarUrl: data.avatarUrl, clinic: data.clinic ?? null, subscription: data.subscription ?? null })
       setStatus('authenticated')
       return
     }
