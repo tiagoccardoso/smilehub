@@ -2,12 +2,13 @@
 
 import { usePathname } from 'next/navigation'
 import SideNav from '../components/layout/SideNav'
-import { AdminIcon } from '../components/admin/AdminIcon'
+import { AdminTopbarActions } from '../components/admin/AdminTopbarActions'
+import type { ReactNode } from 'react'
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const pathname = usePathname()
   const isAuthScreen = pathname === '/admin'
@@ -27,10 +28,7 @@ export default function DashboardLayout({
             <p className='admin-topbar-kicker'>Sistema odontológico premium</p>
             <h2>Gestão clínica SmileHub</h2>
           </div>
-          <div className='admin-topbar-actions' aria-label='Ações rápidas'>
-            <span className='admin-search-pill'><AdminIcon name='search' className='admin-svg-icon' />Buscar</span>
-            <span className='admin-icon-pill'><AdminIcon name='notifications' className='admin-svg-icon' /></span>
-          </div>
+          <AdminTopbarActions />
         </header>
         <div className='admin-content'>{children}</div>
       </main>

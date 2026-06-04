@@ -8,11 +8,16 @@ import {
   useMemo,
   useState,
 } from 'react'
+import type { ReactNode } from 'react'
 
 type AdminSession = {
+  id?: string
   user: string
   email?: string
   role: string
+  phone?: string | null
+  avatarUrl?: string | null
+  clinic?: { id: string; name: string; logoUrl?: string | null } | null
 }
 
 type AuthContextValue = {
@@ -24,7 +29,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-function AppProvider({ children }: { children: React.ReactNode }) {
+function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AdminSession | null>(null)
   const [status, setStatus] = useState<AuthContextValue['status']>('loading')
 
@@ -34,7 +39,7 @@ function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (res.ok) {
       const data = await res.json()
-      setSession({ user: data.user, email: data.email, role: data.role })
+      setSession({ id: data.id, user: data.user, email: data.email, role: data.role, phone: data.phone, avatarUrl: data.avatarUrl, clinic: data.clinic ?? null })
       setStatus('authenticated')
       return
     }

@@ -86,14 +86,16 @@ function ToothButton({
       type='button'
       disabled={disabled}
       onClick={() => onSelect(code)}
-      className={`group relative flex min-w-12 flex-col items-center rounded-2xl border p-2 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 ${hasEntry ? `${style.bg} ${style.border}` : 'border-slate-200 bg-white'} ${selected ? `ring-4 ${style.ring} border-blue-500 shadow-lg` : 'shadow-sm'}`}
+      className={`group relative flex min-w-12 flex-col items-center overflow-visible rounded-2xl border p-2 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 ${hasEntry ? `${style.bg} ${style.border}` : 'border-slate-200 bg-gradient-to-b from-white to-slate-50'} ${selected ? `ring-4 ${style.ring} border-blue-500 shadow-lg` : 'shadow-sm'}`}
       aria-label={`Selecionar dente ${code}. Status: ${label}`}
+      aria-pressed={selected}
+      data-tooth-status={activeEntry?.status ?? 'empty'}
     >
       <span className={`absolute right-2 top-2 h-3 w-3 rounded-full ${style.dot}`} aria-hidden='true' />
       <img
         src={toothImageSrc(code, arch)}
         alt={`Imagem realista do dente ${code}`}
-        className='odontogram-tooth-image h-24 w-auto object-contain transition duration-200 group-hover:scale-105 sm:h-28'
+        className='odontogram-tooth-image h-20 max-h-28 w-full max-w-[5.4rem] object-contain transition duration-200 group-hover:scale-105 sm:h-24 lg:h-28'
       />
       <span className='mt-1 text-xs font-bold text-slate-800'>{code}</span>
       <span className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold leading-tight ${hasEntry ? `${style.bg} ${style.text}` : 'bg-slate-100 text-slate-500'}`}>
@@ -194,7 +196,7 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
       </div>
 
       <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]'>
-        <div className='space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5'>
+        <div className='odontogram-map-panel space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5'>
           <div className='grid gap-4 lg:grid-cols-2'>
             <Quadrant title='Superior direito' teeth={upperRight} arch='upper' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />
             <Quadrant title='Superior esquerdo' teeth={upperLeft} arch='upper' entriesByTooth={entriesByTooth} selectedTooth={selectedTooth} disabled={disabledChart} onSelect={setSelectedTooth} />

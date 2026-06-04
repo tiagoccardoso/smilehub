@@ -3,6 +3,7 @@ export type RegisterInput = {
   email?: unknown
   password?: unknown
   confirmPassword?: unknown
+  phone?: unknown
   clinicName?: unknown
   publicName?: unknown
   slug?: unknown
@@ -94,6 +95,7 @@ export function validateRegisterInput(input: RegisterInput) {
       name,
       email,
       password,
+      phone: text(input.phone),
       clinicName,
       publicName: text(input.publicName),
       slug: text(input.slug),

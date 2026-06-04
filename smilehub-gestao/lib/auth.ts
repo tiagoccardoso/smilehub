@@ -119,6 +119,7 @@ export type ClinicRegistrationPayload = {
   name: string
   email: string
   password: string
+  phone?: string | null
   clinicName: string
   publicName?: string | null
   slug?: string | null
@@ -154,8 +155,8 @@ export async function createUserWithClinic(payload: ClinicRegistrationPayload) {
 
   const rows = await sql`
     with new_user as (
-      insert into public."user" (email, name, role, password_hash)
-      values (${normalizedEmail}, ${normalizedName}, 'admin'::admin_role, ${passwordHash})
+      insert into public."user" (email, name, role, password_hash, phone)
+      values (${normalizedEmail}, ${normalizedName}, 'admin'::admin_role, ${passwordHash}, ${payload.phone || null})
       returning id, email, name, role
     ),
     new_clinic as (

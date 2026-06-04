@@ -10,7 +10,6 @@ function RequiredLabel({ children }: { children: ReactNode }) {
     <span className='required-label'>
       {children}
       <span className='required-mark' aria-hidden='true'>*</span>
-      <span className='required-hint'>Obrigatório</span>
     </span>
   )
 }
@@ -88,11 +87,11 @@ function Admin() {
         return
       }
       if (isRegistering && !acceptTerms) {
-        setError('É obrigatório aceitar os termos de uso.')
+        setError('Aceite os termos de uso para continuar.')
         return
       }
       if (isRegistering && !acceptPrivacy) {
-        setError('É obrigatório aceitar a política de privacidade.')
+        setError('Aceite a política de privacidade para continuar.')
         return
       }
       if (isRegistering && password !== confirmPassword) {
@@ -174,7 +173,7 @@ function Admin() {
 
           {isRegistering && (
             <p className='mx-auto max-w-3xl text-center text-sm text-slate-600'>
-              Cadastre o responsável, a clínica e o plano inicial. Os campos marcados com <span className='font-bold text-red-600'>*</span> são obrigatórios. O trial de 7 dias é criado automaticamente e os dados da clínica ficam isolados por clinic_id.
+              Cadastre o responsável, a clínica e o plano inicial. Use os campos marcados com <span className='font-bold text-red-600'>*</span> para concluir o cadastro. O trial de 7 dias é criado automaticamente e os dados da clínica ficam isolados por clinic_id.
             </p>
           )}
 

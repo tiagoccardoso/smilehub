@@ -24,6 +24,8 @@ create table public."user" (
   name text not null,
   role public.admin_role not null default 'admin',
   password_hash text not null,
+  phone text,
+  avatar_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -301,6 +303,36 @@ create table public.services (
   updated_at timestamptz not null default now()
 );
 
+create table public.nfse_invoices (
+  id uuid primary key default gen_random_uuid(),
+  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  patient_id uuid references public.patients(id) on delete set null,
+  procedure_id uuid references public.procedures(id) on delete set null,
+  requested_by uuid references public."user"(id) on delete set null,
+  idempotency_key text not null,
+  patient_name text,
+  patient_document text,
+  service_name text,
+  service_code text,
+  description text not null,
+  amount numeric(12,2) not null default 0,
+  status text not null default 'configuration_required' check (status in ('draft','configuration_required','processing','issued','failed','canceled')),
+  external_id text,
+  number text,
+  verification_code text,
+  pdf_url text,
+  xml_url text,
+  provider text not null default 'national',
+  environment text not null default 'homologation',
+  safe_response jsonb not null default '{}'::jsonb,
+  error_message text,
+  issued_at timestamptz,
+  canceled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (clinic_id, idempotency_key)
+);
+
 create index user_email_lookup_idx on public."user" (email);
 create index users_email_lookup_idx on public.users (email);
 create index clinic_users_user_idx on public.clinic_users (user_id);
@@ -319,6 +351,9 @@ create index budget_items_clinic_budget_idx on public.budget_items (clinic_id, b
 create index financial_entries_clinic_status_idx on public.financial_entries (clinic_id, status, due_date);
 create index site_content_settings_clinic_idx on public.site_content_settings (clinic_id, section);
 create index services_clinic_idx on public.services (clinic_id, is_active, sort_order);
+create index nfse_invoices_clinic_status_idx on public.nfse_invoices (clinic_id, status, created_at desc);
+create index nfse_invoices_patient_idx on public.nfse_invoices (clinic_id, patient_id, created_at desc);
+create index nfse_invoices_procedure_idx on public.nfse_invoices (clinic_id, procedure_id, created_at desc);
 
 create trigger set_user_updated_at before update on public."user" for each row execute function public.set_updated_at();
 create trigger set_users_updated_at before update on public.users for each row execute function public.set_updated_at();
@@ -340,6 +375,7 @@ create trigger set_budget_items_updated_at before update on public.budget_items 
 create trigger set_financial_entries_updated_at before update on public.financial_entries for each row execute function public.set_updated_at();
 create trigger set_site_content_settings_updated_at before update on public.site_content_settings for each row execute function public.set_updated_at();
 create trigger set_services_updated_at before update on public.services for each row execute function public.set_updated_at();
+create trigger set_nfse_invoices_updated_at before update on public.nfse_invoices for each row execute function public.set_updated_at();
 
 -- Clínica demo opcional, útil para validar resolução por domínio.
 insert into public.clinics (id, name, slug, public_name, email, status, website_enabled, management_enabled, public_description)

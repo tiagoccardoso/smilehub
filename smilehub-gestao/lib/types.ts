@@ -42,6 +42,8 @@ export type AdminUserRow = {
   email?: string | null
   name: string
   role: AdminRole
+  phone?: string | null
+  avatar_url?: string | null
   created_at?: string
   updated_at?: string
 }

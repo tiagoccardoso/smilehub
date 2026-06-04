@@ -5,6 +5,7 @@ import { getSiteContent, type SiteContentSection } from '@/lib/siteContent'
 import { requireClinicAccess, statusLabel } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
+import { ProfileModalButton } from '@/app/components/admin/ProfileModal'
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -135,7 +136,19 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
       <FormFeedback ok={params.ok} error={params.error}/>
       <div role='tablist' aria-label='Abas de configurações' className='flex flex-wrap gap-2'>
         <a role='tab' href='#clinic' className='rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50'>Clínica</a>
+        <a role='tab' href='#profile' className='rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50'>Perfil do usuário</a>
         {sections.map(section=><a key={section.key} role='tab' href={`#${section.key}`} className='rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50'>{section.label}</a>)}
+      </div>
+
+
+      <div id='profile' className='scroll-mt-6 rounded-xl border bg-white p-5 shadow-sm'>
+        <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+          <div>
+            <h2 className='text-xl font-bold'>Perfil do usuário</h2>
+            <p className='text-sm text-gray-500'>Edite nome, telefone e avatar do usuário logado. O nome exibido no menu lateral é atualizado após salvar.</p>
+          </div>
+          <ProfileModalButton label='Editar meu perfil' buttonClassName='rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50' />
+        </div>
       </div>
 
       <form id='clinic' action={saveClinicSettings} className='scroll-mt-6 space-y-4 rounded-xl border bg-white p-5 shadow-sm'>

@@ -9,7 +9,6 @@ function RequiredLabel({ children }: { children: ReactNode }) {
     <span className='required-label'>
       {children}
       <span className='required-mark' aria-hidden='true'>*</span>
-      <span className='required-hint'>Obrigatório</span>
     </span>
   )
 }
@@ -89,7 +88,7 @@ function CreateUser() {
       <div className='p-4 py-16 md:py-24 lg:py-32'>
         <form className='mx-auto mb-4 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm' onSubmit={handleSubmit} aria-busy={isLoading}>
           <h1 className='my-4 text-center text-3xl font-bold text-slate-900'>Criar novo usuário SmileHub</h1>
-          <p className='mb-5 text-center text-sm text-slate-600'>Os campos marcados com <span className='font-bold text-red-600'>*</span> são obrigatórios.</p>
+          <p className='mb-5 text-center text-sm text-slate-600'>Preencha os campos marcados com <span className='font-bold text-red-600'>*</span>.</p>
 
           <label className='mb-3 block text-sm font-medium text-slate-700'>
             <RequiredLabel>Nome de usuário</RequiredLabel>
