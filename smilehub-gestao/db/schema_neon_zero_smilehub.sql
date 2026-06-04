@@ -333,6 +333,31 @@ create table public.nfse_invoices (
   unique (clinic_id, idempotency_key)
 );
 
+
+create table public.nfse_certificate_settings (
+  id uuid primary key default gen_random_uuid(),
+  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  certificate_type text not null default 'e_cnpj' check (certificate_type in ('e_cnpj','e_cpf')),
+  document_number text,
+  provider_name text,
+  environment text not null default 'homologation' check (environment in ('homologation','production')),
+  city_code text,
+  municipal_registration text,
+  file_name text,
+  mime_type text,
+  size_bytes integer check (size_bytes is null or size_bytes >= 0),
+  encrypted_certificate text,
+  encrypted_password text,
+  has_password boolean not null default false,
+  encryption_version text not null default 'aes-256-gcm:v1',
+  valid_until date,
+  status text not null default 'not_configured' check (status in ('not_configured','configured','invalid','expired')),
+  updated_by uuid references public."user"(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (clinic_id)
+);
+
 create index user_email_lookup_idx on public."user" (email);
 create index users_email_lookup_idx on public.users (email);
 create index clinic_users_user_idx on public.clinic_users (user_id);
@@ -354,6 +379,7 @@ create index services_clinic_idx on public.services (clinic_id, is_active, sort_
 create index nfse_invoices_clinic_status_idx on public.nfse_invoices (clinic_id, status, created_at desc);
 create index nfse_invoices_patient_idx on public.nfse_invoices (clinic_id, patient_id, created_at desc);
 create index nfse_invoices_procedure_idx on public.nfse_invoices (clinic_id, procedure_id, created_at desc);
+create index nfse_certificate_settings_clinic_idx on public.nfse_certificate_settings (clinic_id, status);
 
 create trigger set_user_updated_at before update on public."user" for each row execute function public.set_updated_at();
 create trigger set_users_updated_at before update on public.users for each row execute function public.set_updated_at();
@@ -376,6 +402,7 @@ create trigger set_financial_entries_updated_at before update on public.financia
 create trigger set_site_content_settings_updated_at before update on public.site_content_settings for each row execute function public.set_updated_at();
 create trigger set_services_updated_at before update on public.services for each row execute function public.set_updated_at();
 create trigger set_nfse_invoices_updated_at before update on public.nfse_invoices for each row execute function public.set_updated_at();
+create trigger set_nfse_certificate_settings_updated_at before update on public.nfse_certificate_settings for each row execute function public.set_updated_at();
 
 -- Clínica demo opcional, útil para validar resolução por domínio.
 insert into public.clinics (id, name, slug, public_name, email, status, website_enabled, management_enabled, public_description)
