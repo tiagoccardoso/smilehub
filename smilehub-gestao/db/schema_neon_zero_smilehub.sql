@@ -252,6 +252,40 @@ create table public.odontogram_entries (
   updated_at timestamptz not null default now()
 );
 
+
+create table public.odontogram_terms (
+  id uuid primary key default gen_random_uuid(),
+  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  patient_id uuid not null references public.patients(id) on delete cascade,
+  odontogram_id uuid,
+  odontogram_entry_ids uuid[] not null default '{}'::uuid[],
+  chart_type text not null check (chart_type in ('adult', 'children')),
+  guardian_data jsonb not null default '{}'::jsonb,
+  patient_snapshot jsonb not null default '{}'::jsonb,
+  procedures_snapshot jsonb not null default '[]'::jsonb,
+  child_name text,
+  birth_or_age text,
+  guardian_name text,
+  guardian_document text,
+  guardian_phone text,
+  relationship text,
+  authorization_date date,
+  professional_name text,
+  authorized_procedures text,
+  term_text text,
+  related_teeth text[] not null default '{}'::text[],
+  signature_data_url text,
+  status text not null default 'draft' check (status in ('draft', 'signed', 'canceled')),
+  version integer not null default 1 check (version > 0),
+  parent_term_id uuid references public.odontogram_terms(id) on delete set null,
+  created_by uuid references public."user"(id) on delete set null,
+  updated_by uuid references public."user"(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint odontogram_terms_signature_format_check
+    check (signature_data_url is null or signature_data_url like 'data:image/%;base64,%')
+);
+
 create table public.budgets (
   id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references public.clinics(id) on delete cascade,
@@ -402,6 +436,11 @@ create unique index bookings_professional_slot_unique_idx on public.bookings (cl
 create index appointments_clinic_schedule_idx on public.appointments (clinic_id, appointment_date, start_time, professional_id);
 create index medical_records_clinic_patient_idx on public.medical_records (clinic_id, patient_id, created_at desc);
 create index odontogram_entries_clinic_patient_tooth_idx on public.odontogram_entries (clinic_id, patient_id, tooth_code, updated_at desc);
+
+create index odontogram_terms_clinic_patient_chart_idx on public.odontogram_terms (clinic_id, patient_id, chart_type, updated_at desc);
+create index odontogram_terms_parent_idx on public.odontogram_terms (parent_term_id, version) where parent_term_id is not null;
+create index odontogram_terms_entry_ids_gin_idx on public.odontogram_terms using gin (odontogram_entry_ids);
+create index odontogram_terms_related_teeth_gin_idx on public.odontogram_terms using gin (related_teeth);
 create index budgets_clinic_idx on public.budgets (clinic_id, created_at desc);
 create index budget_items_clinic_budget_idx on public.budget_items (clinic_id, budget_id);
 create index financial_entries_clinic_status_idx on public.financial_entries (clinic_id, status, due_date);
@@ -428,6 +467,7 @@ create trigger set_professional_schedules_updated_at before update on public.pro
 create trigger set_appointments_updated_at before update on public.appointments for each row execute function public.set_updated_at();
 create trigger set_medical_records_updated_at before update on public.medical_records for each row execute function public.set_updated_at();
 create trigger set_odontogram_entries_updated_at before update on public.odontogram_entries for each row execute function public.set_updated_at();
+create trigger set_odontogram_terms_updated_at before update on public.odontogram_terms for each row execute function public.set_updated_at();
 create trigger set_budgets_updated_at before update on public.budgets for each row execute function public.set_updated_at();
 create trigger set_budget_items_updated_at before update on public.budget_items for each row execute function public.set_updated_at();
 create trigger set_financial_entries_updated_at before update on public.financial_entries for each row execute function public.set_updated_at();

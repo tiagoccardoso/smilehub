@@ -109,6 +109,13 @@ body {
   background: #cbd5e1;
 }
 
+
+.odontogram-signature-canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @media (max-width: 640px) {
   .odontogram-screen input,
   .odontogram-screen select,
@@ -1450,19 +1457,26 @@ button[type='submit']:disabled,
     margin: 12mm;
   }
 
-  body.print-odontogram {
+  body.print-odontogram,
+  body.print-odontogram-term {
     background: #ffffff !important;
   }
 
   body.print-odontogram .admin-sidebar,
   body.print-odontogram .admin-topbar,
-  body.print-odontogram .odontogram-screen {
+  body.print-odontogram .odontogram-screen,
+  body.print-odontogram-term .admin-sidebar,
+  body.print-odontogram-term .admin-topbar,
+  body.print-odontogram-term .odontogram-screen {
     display: none !important;
   }
 
   body.print-odontogram .admin-premium,
   body.print-odontogram .admin-main,
-  body.print-odontogram .admin-content {
+  body.print-odontogram .admin-content,
+  body.print-odontogram-term .admin-premium,
+  body.print-odontogram-term .admin-main,
+  body.print-odontogram-term .admin-content {
     display: block !important;
     width: 100% !important;
     min-height: 0 !important;
@@ -1472,11 +1486,13 @@ button[type='submit']:disabled,
     box-shadow: none !important;
   }
 
-  body.print-odontogram .odontogram-print-map-only {
+  body.print-odontogram .odontogram-print-map-only,
+  body.print-odontogram-term .odontogram-print-term-only {
     display: block !important;
   }
 
-  body.print-odontogram .odontogram-print-area {
+  body.print-odontogram .odontogram-print-area,
+  body.print-odontogram-term .odontogram-print-area {
     width: 100% !important;
     color: #0f172a !important;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
@@ -1487,27 +1503,35 @@ button[type='submit']:disabled,
   body.print-odontogram .odontogram-print-chart,
   body.print-odontogram .odontogram-print-tooth,
   body.print-odontogram th,
-  body.print-odontogram td {
+  body.print-odontogram td,
+  body.print-odontogram-term .odontogram-print-chart,
+  body.print-odontogram-term .odontogram-print-tooth,
+  body.print-odontogram-term th,
+  body.print-odontogram-term td {
     break-inside: avoid;
   }
 
-  body.print-odontogram thead {
+  body.print-odontogram thead,
+  body.print-odontogram-term thead {
     display: table-header-group;
   }
 
-  body.print-odontogram tr {
+  body.print-odontogram tr,
+  body.print-odontogram-term tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  body.print-odontogram table {
+  body.print-odontogram table,
+  body.print-odontogram-term table {
     font-size: 10px !important;
   }
 
   body.print-odontogram img.odontogram-tooth-image,
-  body.print-odontogram .odontogram-print-tooth img {
+  body.print-odontogram .odontogram-print-tooth img,
+  body.print-odontogram-term img.odontogram-tooth-image,
+  body.print-odontogram-term .odontogram-print-tooth img {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-
 }

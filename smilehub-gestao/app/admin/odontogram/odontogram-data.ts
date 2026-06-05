@@ -192,6 +192,12 @@ export const ODONTOGRAM_STATUS_STYLES: Record<string, {
 export type PatientOption = {
   id: string
   full_name: string
+  cpf?: string | null
+  birth_date?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  guardian_name?: string | null
 }
 
 export type ProcedureOption = {
@@ -212,6 +218,33 @@ export type OdontogramEntry = {
   notes: string | null
   status: string
   scheduled_date: string | null
+  created_by_name?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OdontogramTerm = {
+  id: string
+  patient_id: string
+  patient_name: string
+  chart_type: OdontogramChartId
+  child_name: string | null
+  birth_or_age: string | null
+  guardian_name: string | null
+  guardian_document: string | null
+  guardian_phone: string | null
+  relationship: string | null
+  authorization_date: string | null
+  professional_name: string | null
+  authorized_procedures: string | null
+  term_text: string | null
+  related_teeth: string[] | null
+  signature_data_url: string | null
+  status: string
+  version: number
+  parent_term_id: string | null
+  created_by_name: string | null
+  updated_by_name: string | null
   created_at: string
   updated_at: string
 }

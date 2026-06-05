@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { useFormStatus } from 'react-dom'
 import { SubmitButton } from '../_components/submit-button'
 import {
   ODONTOGRAM_CHARTS,
@@ -11,6 +12,7 @@ import {
   type OdontogramChart,
   type OdontogramChartId,
   type OdontogramEntry,
+  type OdontogramTerm,
   type PatientOption,
   type ProcedureOption,
   type ToothCode,
@@ -23,12 +25,15 @@ type OdontogramClientProps = {
   patients: PatientOption[]
   procedures: ProcedureOption[]
   entries: OdontogramEntry[]
+  terms: OdontogramTerm[]
   selectedPatientId: string
   initialTab: OdontogramChartId
+  initialTermId: string
   saveAction: Action
   deleteAction: Action
+  saveTermAction: Action
+  deleteTermAction: Action
 }
-
 
 type ResponsibilityTerm = {
   childName: string
@@ -67,6 +72,15 @@ function formatDate(value: string | null) {
   return `${day}/${month}/${year}`
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) return 'Sem data'
+  try {
+    return new Date(value).toLocaleString('pt-BR')
+  } catch {
+    return formatDate(value)
+  }
+}
+
 function normalizeClinicalText(value: string) {
   return value
     .normalize('NFD')
@@ -91,6 +105,15 @@ function statusLabel(status: string) {
   return ODONTOGRAM_STATUS.find(item => item.value === status)?.label ?? status
 }
 
+function termStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    draft: 'Rascunho',
+    signed: 'Assinado',
+    canceled: 'Cancelado',
+  }
+  return labels[status] ?? status
+}
+
 function entryProcedure(entry: OdontogramEntry) {
   return entry.procedure_name || entry.planned_procedure || entry.performed_procedure || 'Procedimento sem descrição'
 }
@@ -113,8 +136,38 @@ function groupEntriesByTooth(entries: OdontogramEntry[]) {
   return grouped
 }
 
-function sanitizePrintText(value: string) {
-  return value.trim() || '________________________________________'
+function sanitizePrintText(value: string | null | undefined) {
+  return String(value || '').trim() || '________________________________________'
+}
+
+function emptyResponsibilityTerm(): ResponsibilityTerm {
+  return {
+    childName: '',
+    birthOrAge: '',
+    guardianName: '',
+    guardianDocument: '',
+    guardianPhone: '',
+    relationship: '',
+    authorizedProcedures: '',
+    authorizationDate: '',
+    professionalName: '',
+    termText: '',
+  }
+}
+
+function termFromHistory(savedTerm: OdontogramTerm): ResponsibilityTerm {
+  return {
+    childName: savedTerm.child_name ?? '',
+    birthOrAge: savedTerm.birth_or_age ?? '',
+    guardianName: savedTerm.guardian_name ?? '',
+    guardianDocument: savedTerm.guardian_document ?? '',
+    guardianPhone: savedTerm.guardian_phone ?? '',
+    relationship: savedTerm.relationship ?? '',
+    authorizedProcedures: savedTerm.authorized_procedures ?? '',
+    authorizationDate: normalizeDate(savedTerm.authorization_date),
+    professionalName: savedTerm.professional_name ?? '',
+    termText: savedTerm.term_text ?? '',
+  }
 }
 
 function ToothButton({
@@ -262,21 +315,157 @@ function ChartTabs({ activeChartId, onChange }: { activeChartId: OdontogramChart
   )
 }
 
-function PrintActions({ chart, disabled, onPrint }: { chart: OdontogramChart; disabled: boolean; onPrint: () => void }) {
+function PrintActions({ chart, disabled, onPrintOdontogram, onPrintTerm }: { chart: OdontogramChart; disabled: boolean; onPrintOdontogram: () => void; onPrintTerm: () => void }) {
   return (
     <div className='rounded-2xl border border-slate-200 bg-white p-4 shadow-sm'>
       <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
         <div>
           <h2 className='text-base font-bold'>Impressão</h2>
-          <p className='text-sm text-slate-600'>Gere uma versão A4 preenchida do odontograma {chart.id === 'children' ? 'infantil com termo e assinatura' : 'adulto'}.</p>
+          <p className='text-sm text-slate-600'>Gere relatórios separados para o odontograma {chart.id === 'children' ? 'infantil' : 'adulto'} e para o termo de autorização/responsabilidade.</p>
         </div>
-        <div className='grid gap-2 sm:grid-cols-1 lg:flex lg:flex-wrap lg:justify-end'>
-          <button type='button' onClick={onPrint} disabled={disabled} className='rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300' aria-label={`Imprimir ${chart.title}`}>
-            Imprimir
+        <div className='grid gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-end'>
+          <button type='button' onClick={onPrintOdontogram} disabled={disabled} className='rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300' aria-label={`Imprimir ${chart.title}`}>
+            Imprimir Odontograma
+          </button>
+          <button type='button' onClick={onPrintTerm} disabled={disabled} className='rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400' aria-label={`Imprimir termo do ${chart.title}`}>
+            Imprimir Termo
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+function SignaturePad({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const drawingRef = useRef(false)
+  const lastPointRef = useRef({ x: 0, y: 0 })
+
+  function paintBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+    ctx.strokeStyle = '#0f172a'
+    ctx.lineWidth = 2.4
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }
+
+  function prepareCanvas() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const width = Math.max(rect.width, 320)
+    const height = Math.max(rect.height, 180)
+    const ratio = window.devicePixelRatio || 1
+    canvas.width = Math.floor(width * ratio)
+    canvas.height = Math.floor(height * ratio)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+    paintBackground(ctx, width, height)
+    if (value) {
+      const image = new Image()
+      image.onload = () => ctx.drawImage(image, 0, 0, width, height)
+      image.src = value
+    }
+  }
+
+  useEffect(() => {
+    prepareCanvas()
+    const onResize = () => prepareCanvas()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [value])
+
+  function canvasPoint(event: PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  }
+
+  function startDrawing(event: PointerEvent<HTMLCanvasElement>) {
+    if (disabled) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drawingRef.current = true
+    lastPointRef.current = canvasPoint(event)
+  }
+
+  function draw(event: PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current || disabled) return
+    event.preventDefault()
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!ctx) return
+    const point = canvasPoint(event)
+    ctx.beginPath()
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y)
+    ctx.lineTo(point.x, point.y)
+    ctx.stroke()
+    lastPointRef.current = point
+  }
+
+  function finishDrawing(event?: PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return
+    drawingRef.current = false
+    if (event) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {
+        // Ignora navegadores que já liberaram o ponteiro.
+      }
+    }
+    const canvas = canvasRef.current
+    if (canvas) onChange(canvas.toDataURL('image/png'))
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    const rect = canvas.getBoundingClientRect()
+    paintBackground(ctx, Math.max(rect.width, 320), Math.max(rect.height, 180))
+    onChange('')
+  }
+
+  return (
+    <div className='rounded-2xl border border-slate-200 bg-white p-3'>
+      <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+        <div>
+          <p className='text-sm font-extrabold text-slate-900'>Assinatura digital</p>
+          <p className='text-xs text-slate-500'>Assine com o dedo no celular ou com mouse/caneta no computador.</p>
+        </div>
+        <button type='button' onClick={clearSignature} disabled={disabled || !value} className='rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50'>Limpar assinatura</button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className='odontogram-signature-canvas mt-3 h-44 w-full rounded-xl border border-dashed border-slate-300 bg-white'
+        onPointerDown={startDrawing}
+        onPointerMove={draw}
+        onPointerUp={finishDrawing}
+        onPointerCancel={finishDrawing}
+        aria-label='Campo para assinatura digital'
+      />
+      <p className='mt-2 text-[11px] text-slate-500'>A assinatura é salva junto com o termo no banco de dados da clínica. Não armazene chaves ou senhas nesse campo.</p>
+    </div>
+  )
+}
+
+
+function TermSaveButtons({ disabled, selectedTermId }: { disabled: boolean; selectedTermId: string }) {
+  const { pending } = useFormStatus()
+  const isDisabled = disabled || pending
+
+  return (
+    <>
+      <button type='submit' name='save_mode' value={selectedTermId ? 'update' : 'new'} disabled={isDisabled} className='rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300'>
+        {pending ? 'Salvando...' : selectedTermId ? 'Atualizar termo' : 'Salvar termo'}
+      </button>
+      <button type='submit' name='save_mode' value='new_version' disabled={isDisabled || !selectedTermId} className='rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50'>
+        {pending ? 'Salvando...' : 'Salvar nova versão'}
+      </button>
+    </>
   )
 }
 
@@ -288,6 +477,17 @@ function ResponsibilityTermSection({
   aiLoading,
   aiFeedback,
   onGenerateSuggestion,
+  selectedPatientId,
+  selectedTermId,
+  terms,
+  signatureDataUrl,
+  onSignatureChange,
+  onLoadTerm,
+  onClearLoadedTerm,
+  onPrintTerm,
+  onPrintSavedTerm,
+  saveTermAction,
+  deleteTermAction,
 }: {
   chart: OdontogramChart
   term: ResponsibilityTerm
@@ -296,21 +496,33 @@ function ResponsibilityTermSection({
   aiLoading: boolean
   aiFeedback: { type: 'success' | 'error' | 'info'; message: string } | null
   onGenerateSuggestion: () => void
+  selectedPatientId: string
+  selectedTermId: string
+  terms: OdontogramTerm[]
+  signatureDataUrl: string
+  onSignatureChange: (value: string) => void
+  onLoadTerm: (term: OdontogramTerm) => void
+  onClearLoadedTerm: () => void
+  onPrintTerm: () => void
+  onPrintSavedTerm: (term: OdontogramTerm) => void
+  saveTermAction: Action
+  deleteTermAction: Action
 }) {
   const isChild = chart.id === 'children'
+  const selectedTerm = terms.find(savedTerm => savedTerm.id === selectedTermId)
 
   return (
     <section className='rounded-3xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm sm:p-5'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
         <div>
-          <p className='text-xs font-extrabold uppercase tracking-wide text-emerald-700'>Termo e IA DeepSeek</p>
+          <p className='text-xs font-extrabold uppercase tracking-wide text-emerald-700'>Termo, assinatura e histórico</p>
           <h2 className='text-xl font-bold text-slate-900'>{isChild ? 'Responsabilidade e autorização do responsável' : 'Termo de ciência/autorização do paciente'}</h2>
-          <p className='mt-1 max-w-3xl text-sm text-slate-600'>Use a IA apenas como apoio textual. Revise e edite o texto antes de imprimir ou coletar assinatura.</p>
+          <p className='mt-1 max-w-3xl text-sm text-slate-600'>Preencha, assine, salve no banco e imprima o termo separado do relatório do odontograma. A IA é apenas apoio textual.</p>
         </div>
         <button
           type='button'
           onClick={onGenerateSuggestion}
-          disabled={aiLoading}
+          disabled={aiLoading || !selectedPatientId}
           className='inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300'
         >
           {aiLoading ? 'Gerando sugestão...' : 'Sugerir termo com IA'}
@@ -366,8 +578,81 @@ function ResponsibilityTermSection({
         </label>
         <label className='space-y-1 sm:col-span-2 xl:col-span-3'>
           <span>Texto do termo gerado/revisado</span>
-          <textarea rows={7} value={term.termText} onChange={event => onChange('termText', event.target.value)} placeholder='Clique em “Sugerir termo com IA” ou escreva o texto manualmente. O conteúdo ficará editável antes da impressão.' aria-label='Texto do termo de responsabilidade ou autorização' />
+          <textarea rows={7} value={term.termText} onChange={event => onChange('termText', event.target.value)} placeholder='Clique em “Sugerir termo com IA” ou escreva o texto manualmente. O conteúdo ficará editável antes da impressão e salvamento.' aria-label='Texto do termo de responsabilidade ou autorização' />
         </label>
+      </div>
+
+      <div className='mt-4'>
+        <SignaturePad value={signatureDataUrl} onChange={onSignatureChange} disabled={!selectedPatientId} />
+      </div>
+
+      <div className='mt-4 rounded-2xl border border-emerald-100 bg-white p-4'>
+        <div className='flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between'>
+          <div>
+            <p className='text-sm font-extrabold text-slate-900'>Salvar e imprimir termo</p>
+            <p className='text-xs text-slate-500'>Termo carregado: {selectedTerm ? `versão ${selectedTerm.version} · ${formatDateTime(selectedTerm.updated_at)}` : 'novo termo'}</p>
+          </div>
+          <div className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end'>
+            <button type='button' onClick={onPrintTerm} disabled={!selectedPatientId} className='rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50'>Imprimir Termo</button>
+            <button type='button' onClick={onClearLoadedTerm} disabled={!selectedPatientId} className='rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50'>Novo termo em branco</button>
+          </div>
+        </div>
+
+        <form action={saveTermAction} className='mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end'>
+          <input type='hidden' name='patient_id' value={selectedPatientId} />
+          <input type='hidden' name='chart_type' value={chart.id} />
+          <input type='hidden' name='term_id' value={selectedTermId} />
+          <input type='hidden' name='child_name' value={term.childName} />
+          <input type='hidden' name='birth_or_age' value={term.birthOrAge} />
+          <input type='hidden' name='guardian_name' value={term.guardianName} />
+          <input type='hidden' name='guardian_document' value={term.guardianDocument} />
+          <input type='hidden' name='guardian_phone' value={term.guardianPhone} />
+          <input type='hidden' name='relationship' value={term.relationship} />
+          <input type='hidden' name='authorization_date' value={term.authorizationDate} />
+          <input type='hidden' name='professional_name' value={term.professionalName} />
+          <input type='hidden' name='authorized_procedures' value={term.authorizedProcedures} />
+          <input type='hidden' name='term_text' value={term.termText} />
+          <input type='hidden' name='signature_data_url' value={signatureDataUrl} />
+          <TermSaveButtons disabled={!selectedPatientId} selectedTermId={selectedTermId} />
+        </form>
+      </div>
+
+      <div className='mt-4 rounded-2xl border border-slate-200 bg-white p-4'>
+        <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
+          <div>
+            <p className='text-sm font-extrabold text-slate-900'>Histórico de termos salvos</p>
+            <p className='text-xs text-slate-500'>Carregue um termo para reemitir, imprimir, atualizar, salvar nova versão ou excluir.</p>
+          </div>
+          <span className='rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600'>{terms.length} registro(s)</span>
+        </div>
+        {terms.length ? (
+          <div className='mt-3 grid gap-3'>
+            {terms.map(savedTerm => (
+              <article key={savedTerm.id} className={`rounded-2xl border p-3 ${savedTerm.id === selectedTermId ? 'border-blue-300 bg-blue-50/60' : 'border-slate-200 bg-slate-50/80'}`}>
+                <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+                  <div>
+                    <p className='text-sm font-extrabold text-slate-900'>{savedTerm.chart_type === 'children' ? 'Termo infantil' : 'Termo adulto'} · versão {savedTerm.version}</p>
+                    <p className='text-xs text-slate-600'>Criado em {formatDateTime(savedTerm.created_at)} · Atualizado em {formatDateTime(savedTerm.updated_at)}</p>
+                    <p className='mt-1 text-xs text-slate-600'>Status: <strong>{termStatusLabel(savedTerm.status)}</strong>{savedTerm.guardian_name ? ` · Responsável: ${savedTerm.guardian_name}` : ''}{savedTerm.created_by_name ? ` · Salvo por: ${savedTerm.created_by_name}` : ''}</p>
+                    {savedTerm.related_teeth?.length ? <p className='mt-1 text-xs text-slate-500'>Dentes vinculados: {savedTerm.related_teeth.join(', ')}</p> : null}
+                  </div>
+                  <div className='flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end'>
+                    <button type='button' onClick={() => onLoadTerm(savedTerm)} className='rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50'>Carregar/reemitir</button>
+                    <button type='button' onClick={() => onPrintSavedTerm(savedTerm)} className='rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'>Imprimir salvo</button>
+                    <form action={deleteTermAction} onSubmit={event => { if (!window.confirm('Deseja excluir este termo salvo? Essa ação não pode ser desfeita.')) event.preventDefault() }}>
+                      <input type='hidden' name='patient_id' value={savedTerm.patient_id} />
+                      <input type='hidden' name='chart_type' value={savedTerm.chart_type} />
+                      <input type='hidden' name='term_id' value={savedTerm.id} />
+                      <button type='submit' className='w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50'>Excluir</button>
+                    </form>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className='mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600'>Nenhum termo salvo para este paciente e tipo de odontograma.</p>
+        )}
       </div>
     </section>
   )
@@ -404,10 +689,33 @@ function PrintableChart({ chart, entriesByTooth }: { chart: OdontogramChart; ent
   )
 }
 
+function PrintablePatientDetails({ patient }: { patient?: PatientOption }) {
+  return (
+    <div className='mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-300 p-2 text-xs'>
+      <p><strong>Paciente:</strong> {sanitizePrintText(patient?.full_name)}</p>
+      <p><strong>CPF:</strong> {patient?.cpf || 'Não informado'}</p>
+      <p><strong>Nascimento:</strong> {patient?.birth_date ? formatDate(patient.birth_date) : 'Não informado'}</p>
+      <p><strong>Telefone:</strong> {patient?.phone || 'Não informado'}</p>
+      <p><strong>E-mail:</strong> {patient?.email || 'Não informado'}</p>
+      <p><strong>Responsável no cadastro:</strong> {patient?.guardian_name || 'Não informado'}</p>
+    </div>
+  )
+}
+
+function PrintableSelectedTeethSummary({ entries }: { entries: OdontogramEntry[] }) {
+  const selectedTeeth = [...new Set(entries.map(entry => entry.tooth_code))]
+  return (
+    <div className='mt-3 rounded-xl border border-slate-300 p-2 text-xs'>
+      <p><strong>Dentes selecionados/preenchidos:</strong> {selectedTeeth.length ? selectedTeeth.join(', ') : 'Nenhum dente preenchido'}</p>
+      <p><strong>Total de procedimentos no histórico:</strong> {entries.length}</p>
+    </div>
+  )
+}
+
 function PrintableProcedureList({ entries }: { entries: OdontogramEntry[] }) {
   return (
     <div className='odontogram-print-filled-only mt-4'>
-      <h3 className='text-sm font-extrabold'>Procedimentos registrados</h3>
+      <h3 className='text-sm font-extrabold'>Histórico completo dos procedimentos</h3>
       {entries.length ? (
         <table className='mt-2 w-full border-collapse text-xs'>
           <thead>
@@ -416,8 +724,10 @@ function PrintableProcedureList({ entries }: { entries: OdontogramEntry[] }) {
               <th className='border border-slate-300 p-1 text-left'>Procedimento</th>
               <th className='border border-slate-300 p-1 text-left'>Condição</th>
               <th className='border border-slate-300 p-1 text-left'>Status</th>
-              <th className='border border-slate-300 p-1 text-left'>Data</th>
+              <th className='border border-slate-300 p-1 text-left'>Data prevista</th>
               <th className='border border-slate-300 p-1 text-left'>Observações</th>
+              <th className='border border-slate-300 p-1 text-left'>Responsável</th>
+              <th className='border border-slate-300 p-1 text-left'>Atualizado em</th>
             </tr>
           </thead>
           <tbody>
@@ -429,6 +739,8 @@ function PrintableProcedureList({ entries }: { entries: OdontogramEntry[] }) {
                 <td className='border border-slate-300 p-1'>{toothVisualStatus(entry).label}</td>
                 <td className='border border-slate-300 p-1'>{formatDate(entry.scheduled_date)}</td>
                 <td className='border border-slate-300 p-1'>{entry.notes || '-'}</td>
+                <td className='border border-slate-300 p-1'>{entry.created_by_name || '-'}</td>
+                <td className='border border-slate-300 p-1'>{formatDateTime(entry.updated_at)}</td>
               </tr>
             ))}
           </tbody>
@@ -438,18 +750,20 @@ function PrintableProcedureList({ entries }: { entries: OdontogramEntry[] }) {
   )
 }
 
-function PrintableTermDetails({ chart, term, patientName, suggestedProcedures }: { chart: OdontogramChart; term: ResponsibilityTerm; patientName: string; suggestedProcedures: string }) {
+function PrintableTermDetails({ chart, term, patientName, suggestedProcedures, entries, signatureDataUrl }: { chart: OdontogramChart; term: ResponsibilityTerm; patientName: string; suggestedProcedures: string; entries: OdontogramEntry[]; signatureDataUrl: string }) {
   const isChild = chart.id === 'children'
   const fallbackText = isChild
     ? 'Declaro, na condição de responsável legal pela criança identificada neste documento, que recebi as orientações necessárias, pude esclarecer dúvidas e autorizo a realização dos procedimentos odontológicos descritos, conforme avaliação profissional e odontograma preenchido.'
     : 'Declaro que recebi as orientações necessárias, pude esclarecer dúvidas e estou ciente/autorizo os procedimentos odontológicos registrados neste odontograma, conforme avaliação profissional.'
   const termText = term.termText.trim() || fallbackText
+  const relatedTeeth = [...new Set(entries.map(entry => entry.tooth_code))]
 
   return (
     <div className='odontogram-print-filled-only mt-4 space-y-3'>
       <h3 className='text-sm font-extrabold'>{isChild ? 'Dados da criança, responsável e autorização' : 'Dados do termo de ciência/autorização'}</h3>
       <div className='grid grid-cols-2 gap-2 text-xs'>
         <p><strong>Paciente:</strong> {sanitizePrintText(patientName)}</p>
+        <p><strong>Tipo:</strong> {chart.title}</p>
         {isChild ? <p><strong>Criança:</strong> {sanitizePrintText(term.childName || patientName)}</p> : null}
         {isChild ? <p><strong>Nascimento/idade:</strong> {sanitizePrintText(term.birthOrAge)}</p> : null}
         {isChild ? <p><strong>Responsável:</strong> {sanitizePrintText(term.guardianName)}</p> : null}
@@ -458,53 +772,74 @@ function PrintableTermDetails({ chart, term, patientName, suggestedProcedures }:
         {isChild ? <p><strong>Parentesco:</strong> {sanitizePrintText(term.relationship)}</p> : null}
         <p><strong>Data:</strong> {term.authorizationDate ? formatDate(term.authorizationDate) : new Date().toLocaleDateString('pt-BR')}</p>
         <p><strong>Profissional:</strong> {sanitizePrintText(term.professionalName)}</p>
+        <p><strong>Dentes relacionados:</strong> {relatedTeeth.length ? relatedTeeth.join(', ') : 'Não informado'}</p>
       </div>
       <div className='rounded-xl border border-slate-300 p-2 text-xs leading-relaxed'>
-        <p><strong>Procedimentos/observações do termo:</strong> {term.authorizedProcedures.trim() || suggestedProcedures || 'Não informado'}</p>
+        <p><strong>Procedimentos autorizados:</strong> {term.authorizedProcedures.trim() || suggestedProcedures || 'Não informado'}</p>
         <p className='mt-2 whitespace-pre-line'>{termText}</p>
         <p className='mt-2 text-[10px] text-slate-600'>Texto de apoio sujeito à revisão clínica/profissional e, quando necessário, jurídica.</p>
       </div>
-      <div className='mt-8 grid grid-cols-2 gap-10 text-center text-xs'>
-        <div className='border-t border-slate-700 pt-2'>{isChild ? 'Assinatura do responsável' : 'Assinatura do paciente/responsável'}</div>
+      <div className='rounded-xl border border-slate-300 p-2 text-xs'>
+        <p className='font-bold'>Resumo dos procedimentos vinculados ao termo</p>
+        {entries.length ? (
+          <ul className='mt-1 grid grid-cols-2 gap-x-4 gap-y-1'>
+            {entries.map(entry => <li key={entry.id}>Dente {entry.tooth_code}: {entryProcedure(entry)} · {toothVisualStatus(entry).label}</li>)}
+          </ul>
+        ) : <p className='mt-1'>Nenhum procedimento vinculado.</p>}
+      </div>
+      <div className='mt-6 grid grid-cols-2 gap-10 text-center text-xs'>
+        <div className='min-h-24 border-t border-slate-700 pt-2'>
+          {signatureDataUrl ? <img src={signatureDataUrl} alt='Assinatura digital capturada' className='mx-auto -mt-20 mb-2 h-20 max-w-full object-contain' /> : null}
+          {isChild ? 'Assinatura do responsável' : 'Assinatura do paciente/responsável'}
+        </div>
         <div className='border-t border-slate-700 pt-2'>Assinatura do profissional</div>
       </div>
     </div>
   )
 }
 
-function PrintMapArea({ chart, patientName, entries, entriesByTooth, term, suggestedProcedures }: { chart: OdontogramChart; patientName: string; entries: OdontogramEntry[]; entriesByTooth: Map<string, OdontogramEntry[]>; term: ResponsibilityTerm; suggestedProcedures: string }) {
+function PrintMapArea({ chart, patient, entries, entriesByTooth }: { chart: OdontogramChart; patient?: PatientOption; entries: OdontogramEntry[]; entriesByTooth: Map<string, OdontogramEntry[]> }) {
   return (
     <section className='odontogram-print-area odontogram-print-map-only hidden'>
       <header className='mb-4 border-b border-slate-300 pb-3'>
-        <p className='text-xs font-bold uppercase tracking-wide text-slate-500'>SmileHub · Odontograma</p>
+        <p className='text-xs font-bold uppercase tracking-wide text-slate-500'>SmileHub · Relatório do Odontograma</p>
         <h1 className='text-xl font-extrabold'>{chart.title}</h1>
-        <p className='text-sm'>Paciente: <strong>{patientName || 'Não informado'}</strong></p>
+        <p className='text-sm'>Paciente: <strong>{patient?.full_name || 'Não informado'}</strong></p>
         <p className='text-xs text-slate-600'>Data da impressão: {new Date().toLocaleDateString('pt-BR')}</p>
       </header>
-      <PrintableChart chart={chart} entriesByTooth={entriesByTooth} />
+      <PrintablePatientDetails patient={patient} />
+      <PrintableSelectedTeethSummary entries={entries} />
+      <div className='mt-4'>
+        <PrintableChart chart={chart} entriesByTooth={entriesByTooth} />
+      </div>
       <PrintableProcedureList entries={entries} />
-      <PrintableTermDetails chart={chart} term={term} patientName={patientName} suggestedProcedures={suggestedProcedures} />
     </section>
   )
 }
 
-export function OdontogramClient({ patients, procedures, entries, selectedPatientId, initialTab, saveAction, deleteAction }: OdontogramClientProps) {
+function PrintTermArea({ chart, patient, entries, term, suggestedProcedures, signatureDataUrl }: { chart: OdontogramChart; patient?: PatientOption; entries: OdontogramEntry[]; term: ResponsibilityTerm; suggestedProcedures: string; signatureDataUrl: string }) {
+  return (
+    <section className='odontogram-print-area odontogram-print-term-only hidden'>
+      <header className='mb-4 border-b border-slate-300 pb-3'>
+        <p className='text-xs font-bold uppercase tracking-wide text-slate-500'>SmileHub · Termo de Responsabilidade/Autorização</p>
+        <h1 className='text-xl font-extrabold'>{chart.id === 'children' ? 'Termo infantil de autorização do responsável' : 'Termo adulto de ciência/autorização'}</h1>
+        <p className='text-sm'>Paciente: <strong>{patient?.full_name || 'Não informado'}</strong></p>
+        <p className='text-xs text-slate-600'>Data da impressão: {new Date().toLocaleDateString('pt-BR')}</p>
+      </header>
+      <PrintablePatientDetails patient={patient} />
+      <PrintableTermDetails chart={chart} term={term} patientName={patient?.full_name ?? ''} suggestedProcedures={suggestedProcedures} entries={entries} signatureDataUrl={signatureDataUrl} />
+    </section>
+  )
+}
+
+export function OdontogramClient({ patients, procedures, entries, terms, selectedPatientId, initialTab, initialTermId, saveAction, deleteAction, saveTermAction, deleteTermAction }: OdontogramClientProps) {
   const router = useRouter()
   const initialChart = chartsById.get(initialTab) ?? ODONTOGRAM_CHARTS[0]
   const [activeChartId, setActiveChartId] = useState<OdontogramChartId>(initialChart.id)
   const [selectedTooth, setSelectedTooth] = useState<ToothCode | null>(null)
-  const [term, setTerm] = useState<ResponsibilityTerm>({
-    childName: '',
-    birthOrAge: '',
-    guardianName: '',
-    guardianDocument: '',
-    guardianPhone: '',
-    relationship: '',
-    authorizedProcedures: '',
-    authorizationDate: '',
-    professionalName: '',
-    termText: '',
-  })
+  const [selectedTermId, setSelectedTermId] = useState(initialTermId)
+  const [signatureDataUrl, setSignatureDataUrl] = useState('')
+  const [term, setTerm] = useState<ResponsibilityTerm>(emptyResponsibilityTerm)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiFeedback, setAiFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
 
@@ -515,20 +850,47 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
 
   const entriesForCurrentChart = useMemo(() => entries.filter(entry => (!selectedPatientId || entry.patient_id === selectedPatientId) && activeToothSet.has(entry.tooth_code)), [activeToothSet, entries, selectedPatientId])
   const entriesByTooth = useMemo(() => groupEntriesByTooth(entriesForCurrentChart), [entriesForCurrentChart])
+  const termsForCurrentChart = useMemo(() => terms.filter(savedTerm => savedTerm.patient_id === selectedPatientId && savedTerm.chart_type === activeChart.id), [activeChart.id, selectedPatientId, terms])
 
   const selectedEntries = selectedTooth ? entriesByTooth.get(selectedTooth) ?? [] : []
   const currentEntry = selectedEntries[0]
   const disabledChart = !selectedPatientId
   const suggestedProcedures = entriesForCurrentChart.map(entry => `Dente ${entry.tooth_code}: ${entryProcedure(entry)} (${toothVisualStatus(entry).label})`).join('; ')
 
+  function loadSavedTerm(savedTerm: OdontogramTerm) {
+    setSelectedTermId(savedTerm.id)
+    setTerm(termFromHistory(savedTerm))
+    setSignatureDataUrl(savedTerm.signature_data_url ?? '')
+  }
+
+  function clearLoadedTerm() {
+    setSelectedTermId('')
+    setTerm(emptyResponsibilityTerm())
+    setSignatureDataUrl('')
+  }
+
+  useEffect(() => {
+    if (!initialTermId) return
+    const savedTerm = terms.find(item => item.id === initialTermId)
+    if (savedTerm) loadSavedTerm(savedTerm)
+  }, [initialTermId, terms])
+
+  useEffect(() => {
+    if (selectedTermId && !termsForCurrentChart.some(savedTerm => savedTerm.id === selectedTermId)) {
+      clearLoadedTerm()
+    }
+  }, [selectedTermId, termsForCurrentChart])
+
   function changePatient(patientId: string) {
     setSelectedTooth(null)
+    clearLoadedTerm()
     router.push(patientId ? `/admin/odontogram?patient_id=${patientId}&tab=${activeChartId}` : `/admin/odontogram?tab=${activeChartId}`)
   }
 
   function changeChart(chartId: OdontogramChartId) {
     setActiveChartId(chartId)
     setSelectedTooth(null)
+    clearLoadedTerm()
     const current = selectedPatientId ? `?patient_id=${selectedPatientId}&tab=${chartId}` : `?tab=${chartId}`
     router.replace(`/admin/odontogram${current}`, { scroll: false })
   }
@@ -583,8 +945,8 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
     }
   }
 
-  function handlePrint() {
-    const classes = ['print-odontogram']
+  function handlePrint(mode: 'odontogram' | 'term') {
+    const classes = [mode === 'term' ? 'print-odontogram-term' : 'print-odontogram']
 
     document.body.classList.add(...classes)
     const cleanup = () => {
@@ -597,6 +959,11 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
       window.print()
       window.setTimeout(cleanup, 500)
     }, 80)
+  }
+
+  function handlePrintSavedTerm(savedTerm: OdontogramTerm) {
+    loadSavedTerm(savedTerm)
+    window.setTimeout(() => handlePrint('term'), 120)
   }
 
   const upperTeeth = activeChart.teeth.filter(tooth => tooth.arch === 'upper')
@@ -613,10 +980,10 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
             <option value=''>Selecione um paciente para habilitar o mapa dental</option>
             {patients.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}
           </select>
-          {!selectedPatientId ? <p className='mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800'>Escolha um paciente antes de registrar procedimentos em dentes.</p> : null}
+          {!selectedPatientId ? <p className='mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800'>Escolha um paciente antes de registrar procedimentos em dentes, salvar termos ou imprimir relatórios.</p> : null}
         </div>
 
-        <PrintActions chart={activeChart} disabled={!selectedPatientId} onPrint={handlePrint} />
+        <PrintActions chart={activeChart} disabled={!selectedPatientId} onPrintOdontogram={() => handlePrint('odontogram')} onPrintTerm={() => handlePrint('term')} />
 
         <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]'>
           <div className='odontogram-map-panel space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5'>
@@ -643,6 +1010,10 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
                 <dt className='text-slate-500'>Procedimentos</dt>
                 <dd className='text-2xl font-bold text-blue-700'>{entriesForCurrentChart.length}</dd>
               </div>
+              <div className='rounded-xl bg-slate-50 p-3'>
+                <dt className='text-slate-500'>Termos salvos</dt>
+                <dd className='text-2xl font-bold text-emerald-700'>{termsForCurrentChart.length}</dd>
+              </div>
             </dl>
             <div className='mt-4 space-y-2'>
               {entriesForCurrentChart.length ? entriesForCurrentChart.slice(0, 6).map(entry => {
@@ -668,6 +1039,17 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
           aiLoading={aiLoading}
           aiFeedback={aiFeedback}
           onGenerateSuggestion={handleGenerateTermSuggestion}
+          selectedPatientId={selectedPatientId}
+          selectedTermId={selectedTermId}
+          terms={termsForCurrentChart}
+          signatureDataUrl={signatureDataUrl}
+          onSignatureChange={setSignatureDataUrl}
+          onLoadTerm={loadSavedTerm}
+          onClearLoadedTerm={clearLoadedTerm}
+          onPrintTerm={() => handlePrint('term')}
+          onPrintSavedTerm={handlePrintSavedTerm}
+          saveTermAction={saveTermAction}
+          deleteTermAction={deleteTermAction}
         />
 
         {selectedTooth && selectedPatientId ? (
@@ -767,7 +1149,8 @@ export function OdontogramClient({ patients, procedures, entries, selectedPatien
         ) : null}
       </div>
 
-      <PrintMapArea chart={activeChart} patientName={selectedPatient?.full_name ?? ''} entries={entriesForCurrentChart} entriesByTooth={entriesByTooth} term={term} suggestedProcedures={suggestedProcedures} />
+      <PrintMapArea chart={activeChart} patient={selectedPatient} entries={entriesForCurrentChart} entriesByTooth={entriesByTooth} />
+      <PrintTermArea chart={activeChart} patient={selectedPatient} entries={entriesForCurrentChart} term={term} suggestedProcedures={suggestedProcedures} signatureDataUrl={signatureDataUrl} />
     </>
   )
 }
