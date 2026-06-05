@@ -82,6 +82,12 @@ body {
   font-weight: 800;
 }
 
+.odontogram-screen,
+.odontogram-map-panel,
+.odontogram-arc-section {
+  min-width: 0;
+}
+
 .odontogram-map-panel {
   background:
     radial-gradient(circle at top, rgba(219, 234, 254, 0.75), transparent 28rem),
@@ -94,21 +100,79 @@ body {
   filter: drop-shadow(0 9px 12px rgba(15, 23, 42, 0.14));
 }
 
-.odontogram-arc-scroll {
-  overscroll-behavior-inline: contain;
-  scroll-snap-type: x proximity;
+.odontogram-arc-scroll,
+.odontogram-procedure-scroll,
+.odontogram-procedure-history {
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e2e8f0;
 }
 
-.odontogram-arc-scroll::-webkit-scrollbar {
-  height: 8px;
+.odontogram-arc-scroll {
+  border-radius: 18px;
+  scroll-padding-inline: 12px;
+  scroll-snap-type: x proximity;
 }
 
-.odontogram-arc-scroll::-webkit-scrollbar-thumb {
+.odontogram-arc-scroll::-webkit-scrollbar,
+.odontogram-procedure-scroll::-webkit-scrollbar,
+.odontogram-procedure-history::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.odontogram-arc-scroll::-webkit-scrollbar-track,
+.odontogram-procedure-scroll::-webkit-scrollbar-track,
+.odontogram-procedure-history::-webkit-scrollbar-track {
   border-radius: 999px;
-  background: #cbd5e1;
+  background: #e2e8f0;
 }
 
+.odontogram-arc-scroll::-webkit-scrollbar-thumb,
+.odontogram-procedure-scroll::-webkit-scrollbar-thumb,
+.odontogram-procedure-history::-webkit-scrollbar-thumb {
+  border: 2px solid #e2e8f0;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.odontogram-procedure-backdrop {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.odontogram-procedure-sheet {
+  contain: layout;
+}
+
+.admin-content .odontogram-procedure-form,
+.admin-content .odontogram-delete-procedure-form {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.odontogram-procedure-form label > span {
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.odontogram-procedure-form input,
+.odontogram-procedure-form select,
+.odontogram-procedure-form textarea {
+  min-height: 48px;
+  border-radius: 14px !important;
+  font-size: 16px;
+}
+
+.odontogram-procedure-form textarea {
+  min-height: 132px;
+  resize: vertical;
+}
 
 .odontogram-signature-canvas {
   touch-action: none;
@@ -122,6 +186,19 @@ body {
   .odontogram-screen textarea {
     min-height: 44px;
     font-size: 16px;
+  }
+
+  .odontogram-procedure-sheet {
+    height: 96dvh;
+  }
+
+  .odontogram-procedure-footer {
+    position: sticky;
+    bottom: 0;
+    margin-inline: -1rem;
+    padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -18px 30px rgba(255, 255, 255, 0.92);
   }
 }
 
@@ -1457,17 +1534,18 @@ button[type='submit']:disabled,
     margin: 12mm;
   }
 
+  html,
   body.print-odontogram,
   body.print-odontogram-term {
+    width: 100% !important;
+    min-height: 0 !important;
     background: #ffffff !important;
   }
 
   body.print-odontogram .admin-sidebar,
   body.print-odontogram .admin-topbar,
-  body.print-odontogram .odontogram-screen,
   body.print-odontogram-term .admin-sidebar,
-  body.print-odontogram-term .admin-topbar,
-  body.print-odontogram-term .odontogram-screen {
+  body.print-odontogram-term .admin-topbar {
     display: none !important;
   }
 
@@ -1480,10 +1558,24 @@ button[type='submit']:disabled,
     display: block !important;
     width: 100% !important;
     min-height: 0 !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
     background: #ffffff !important;
     box-shadow: none !important;
+  }
+
+  body.print-odontogram .admin-content section,
+  body.print-odontogram-term .admin-content section {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  body.print-odontogram .admin-content > section > :not(.odontogram-print-map-only),
+  body.print-odontogram-term .admin-content > section > :not(.odontogram-print-term-only) {
+    display: none !important;
   }
 
   body.print-odontogram .odontogram-print-map-only,
@@ -1494,6 +1586,10 @@ button[type='submit']:disabled,
   body.print-odontogram .odontogram-print-area,
   body.print-odontogram-term .odontogram-print-area {
     width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
     color: #0f172a !important;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
     break-inside: auto;
@@ -1524,6 +1620,7 @@ button[type='submit']:disabled,
 
   body.print-odontogram table,
   body.print-odontogram-term table {
+    width: 100% !important;
     font-size: 10px !important;
   }
 
