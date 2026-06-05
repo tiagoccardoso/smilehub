@@ -1,14 +1,26 @@
-export const TOOTH_CODES = [
+export const ADULT_TOOTH_CODES = [
   '18', '17', '16', '15', '14', '13', '12', '11',
   '21', '22', '23', '24', '25', '26', '27', '28',
   '48', '47', '46', '45', '44', '43', '42', '41',
   '31', '32', '33', '34', '35', '36', '37', '38',
 ] as const
 
+export const CHILD_TOOTH_CODES = [
+  '55', '54', '53', '52', '51',
+  '61', '62', '63', '64', '65',
+  '85', '84', '83', '82', '81',
+  '71', '72', '73', '74', '75',
+] as const
+
+export const TOOTH_CODES = [...ADULT_TOOTH_CODES, ...CHILD_TOOTH_CODES] as const
+
+export type AdultToothCode = typeof ADULT_TOOTH_CODES[number]
+export type ChildToothCode = typeof CHILD_TOOTH_CODES[number]
 export type ToothCode = typeof TOOTH_CODES[number]
 export type ToothArch = 'upper' | 'lower'
 export type ToothSide = 'right' | 'left'
 export type ToothKind = 'incisor' | 'canine' | 'premolar' | 'molar'
+export type OdontogramChartId = 'adult' | 'children'
 
 export type ToothConfig = {
   number: ToothCode
@@ -16,6 +28,16 @@ export type ToothConfig = {
   side: ToothSide
   type: ToothKind
   image: string
+}
+
+export type OdontogramChart = {
+  id: OdontogramChartId
+  label: string
+  title: string
+  description: string
+  teeth: readonly ToothConfig[]
+  columns: number
+  compact?: boolean
 }
 
 export const ODONTOGRAM_TEETH = [
@@ -52,6 +74,49 @@ export const ODONTOGRAM_TEETH = [
   { number: '37', arch: 'lower', side: 'left', type: 'molar', image: '/assets/odontogram/teeth/tooth-37.png' },
   { number: '38', arch: 'lower', side: 'left', type: 'molar', image: '/assets/odontogram/teeth/tooth-38.png' },
 ] as const satisfies readonly ToothConfig[]
+
+export const PEDIATRIC_ODONTOGRAM_TEETH = [
+  { number: '55', arch: 'upper', side: 'right', type: 'molar', image: '/assets/odontogram/children/tooth-55.png' },
+  { number: '54', arch: 'upper', side: 'right', type: 'molar', image: '/assets/odontogram/children/tooth-54.png' },
+  { number: '53', arch: 'upper', side: 'right', type: 'canine', image: '/assets/odontogram/children/tooth-53.png' },
+  { number: '52', arch: 'upper', side: 'right', type: 'incisor', image: '/assets/odontogram/children/tooth-52.png' },
+  { number: '51', arch: 'upper', side: 'right', type: 'incisor', image: '/assets/odontogram/children/tooth-51.png' },
+  { number: '61', arch: 'upper', side: 'left', type: 'incisor', image: '/assets/odontogram/children/tooth-61.png' },
+  { number: '62', arch: 'upper', side: 'left', type: 'incisor', image: '/assets/odontogram/children/tooth-62.png' },
+  { number: '63', arch: 'upper', side: 'left', type: 'canine', image: '/assets/odontogram/children/tooth-63.png' },
+  { number: '64', arch: 'upper', side: 'left', type: 'molar', image: '/assets/odontogram/children/tooth-64.png' },
+  { number: '65', arch: 'upper', side: 'left', type: 'molar', image: '/assets/odontogram/children/tooth-65.png' },
+  { number: '85', arch: 'lower', side: 'right', type: 'molar', image: '/assets/odontogram/children/tooth-85.png' },
+  { number: '84', arch: 'lower', side: 'right', type: 'molar', image: '/assets/odontogram/children/tooth-84.png' },
+  { number: '83', arch: 'lower', side: 'right', type: 'canine', image: '/assets/odontogram/children/tooth-83.png' },
+  { number: '82', arch: 'lower', side: 'right', type: 'incisor', image: '/assets/odontogram/children/tooth-82.png' },
+  { number: '81', arch: 'lower', side: 'right', type: 'incisor', image: '/assets/odontogram/children/tooth-81.png' },
+  { number: '71', arch: 'lower', side: 'left', type: 'incisor', image: '/assets/odontogram/children/tooth-71.png' },
+  { number: '72', arch: 'lower', side: 'left', type: 'incisor', image: '/assets/odontogram/children/tooth-72.png' },
+  { number: '73', arch: 'lower', side: 'left', type: 'canine', image: '/assets/odontogram/children/tooth-73.png' },
+  { number: '74', arch: 'lower', side: 'left', type: 'molar', image: '/assets/odontogram/children/tooth-74.png' },
+  { number: '75', arch: 'lower', side: 'left', type: 'molar', image: '/assets/odontogram/children/tooth-75.png' },
+] as const satisfies readonly ToothConfig[]
+
+export const ODONTOGRAM_CHARTS = [
+  {
+    id: 'adult',
+    label: 'Adulto',
+    title: 'Odontograma adulto',
+    description: 'Dentição permanente no padrão FDI, preservando o fluxo atual do sistema.',
+    teeth: ODONTOGRAM_TEETH,
+    columns: 16,
+  },
+  {
+    id: 'children',
+    label: 'Crianças',
+    title: 'Odontograma infantil',
+    description: 'Dentição decídua infantil no padrão FDI, com dentes individuais e clicáveis.',
+    teeth: PEDIATRIC_ODONTOGRAM_TEETH,
+    columns: 10,
+    compact: true,
+  },
+] as const satisfies readonly OdontogramChart[]
 
 export const ODONTOGRAM_STATUS = [
   { value: 'planned', label: 'Planejado' },

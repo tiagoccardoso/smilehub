@@ -4,10 +4,11 @@ import { redirect } from 'next/navigation'
 import { sql } from '@/lib/neon'
 import { OdontogramClient } from './odontogram-client'
 import { requireClinicAccess } from '@/lib/clinic'
-import { ODONTOGRAM_STATUS, TOOTH_CODES, type OdontogramEntry, type PatientOption, type ProcedureOption } from './odontogram-data'
+import { ODONTOGRAM_CHARTS, ODONTOGRAM_STATUS, TOOTH_CODES, type OdontogramChartId, type OdontogramEntry, type PatientOption, type ProcedureOption } from './odontogram-data'
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const toothCodeSet = new Set<string>(TOOTH_CODES)
+const chartIdSet = new Set<string>(ODONTOGRAM_CHARTS.map(chart => chart.id))
 const statusSet = new Set<string>(ODONTOGRAM_STATUS.map(status => status.value))
 
 function requiredText(formData: FormData, field: string) {
@@ -36,12 +37,13 @@ async function saveOdontogramEntry(formData: FormData) {
   const toothCode = requiredText(formData, 'tooth_code')
   const entryId = requiredText(formData, 'entry_id')
   const status = statusSet.has(requiredText(formData, 'status')) ? requiredText(formData, 'status') : 'planned'
+  const chartType = chartIdSet.has(requiredText(formData, 'chart_type')) ? requiredText(formData, 'chart_type') : 'adult'
   const procedureId = requiredText(formData, 'procedure_id')
   const plannedProcedure = optionalText(formData, 'planned_procedure', 180)
   const notes = optionalText(formData, 'notes', 1200)
   const condition = optionalText(formData, 'condition', 120)
   const scheduledDate = optionalDate(formData, 'scheduled_date')
-  let target = `/admin/odontogram?patient_id=${encodeURIComponent(patientId)}`
+  let target = `/admin/odontogram?patient_id=${encodeURIComponent(patientId)}&tab=${encodeURIComponent(chartType)}`
 
   try {
     if (!uuidPattern.test(patientId) || !toothCodeSet.has(toothCode) || (!plannedProcedure && !procedureId)) {
@@ -120,7 +122,8 @@ async function deleteOdontogramEntry(formData: FormData) {
   const { clinic } = await assertOdontogramAccess()
   const patientId = requiredText(formData, 'patient_id')
   const entryId = requiredText(formData, 'entry_id')
-  let target = `/admin/odontogram${patientId ? `?patient_id=${encodeURIComponent(patientId)}` : ''}`
+  const chartType = chartIdSet.has(requiredText(formData, 'chart_type')) ? requiredText(formData, 'chart_type') : 'adult'
+  let target = `/admin/odontogram${patientId ? `?patient_id=${encodeURIComponent(patientId)}&tab=${encodeURIComponent(chartType)}` : `?tab=${encodeURIComponent(chartType)}`}`
 
   try {
     if (!uuidPattern.test(patientId) || !uuidPattern.test(entryId)) {
@@ -144,6 +147,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const { clinic } = await assertOdontogramAccess()
   const params = (await searchParams) ?? {}
   const selectedPatientId = uuidPattern.test(params.patient_id || '') ? params.patient_id : ''
+  const initialTab = (chartIdSet.has(params.tab || '') ? params.tab : 'adult') as OdontogramChartId
 
   const [entries, patients, procedures] = await Promise.all([
     sql`
@@ -188,6 +192,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         procedures={procedures as ProcedureOption[]}
         entries={entries as OdontogramEntry[]}
         selectedPatientId={selectedPatientId}
+        initialTab={initialTab}
         saveAction={saveOdontogramEntry}
         deleteAction={deleteOdontogramEntry}
       />
