@@ -34,6 +34,144 @@ function optionalDate(formData: FormData, field: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 }
 
+type OdontogramLoadResult = {
+  patients: PatientOption[]
+  procedures: ProcedureOption[]
+  entries: OdontogramEntry[]
+  terms: OdontogramTerm[]
+  warnings: string[]
+}
+
+function technicalErrorDetails(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return { message: String(error || 'Erro desconhecido') }
+  }
+
+  const details = error as { message?: unknown; code?: unknown; detail?: unknown; hint?: unknown }
+  return {
+    message: typeof details.message === 'string' ? details.message : 'Erro desconhecido',
+    code: typeof details.code === 'string' ? details.code : undefined,
+    detail: typeof details.detail === 'string' ? details.detail : undefined,
+    hint: typeof details.hint === 'string' ? details.hint : undefined,
+  }
+}
+
+function logOdontogramError(scope: string, error: unknown) {
+  console.error(`[odontogram] ${scope}`, technicalErrorDetails(error))
+}
+
+async function safeLoad<T>(scope: string, fallback: T, warning: string, loader: () => Promise<T>) {
+  try {
+    return { data: await loader(), warning: null as string | null }
+  } catch (error) {
+    logOdontogramError(scope, error)
+    return { data: fallback, warning }
+  }
+}
+
+async function loadOdontogramData(clinicId: string, selectedPatientId: string): Promise<OdontogramLoadResult> {
+  const [entriesResult, patientsResult, proceduresResult, termsResult] = await Promise.all([
+    safeLoad<OdontogramEntry[]>(
+      'load.entries',
+      [],
+      'Os procedimentos do odontograma não puderam ser carregados. A tela foi aberta sem registros para evitar a quebra da página.',
+      async () => (await sql`
+        select
+          o.id,
+          o.patient_id,
+          p.full_name as patient_name,
+          o.tooth_code,
+          o.condition,
+          o.procedure_id,
+          pr.name as procedure_name,
+          o.planned_procedure,
+          o.performed_procedure,
+          o.notes,
+          coalesce(o.status, 'planned') as status,
+          o.scheduled_date,
+          coalesce(u.name, u.email) as created_by_name,
+          o.created_at,
+          o.updated_at
+        from odontogram_entries o
+        join patients p on p.id = o.patient_id and p.clinic_id = o.clinic_id
+        left join procedures pr on pr.id = o.procedure_id and pr.clinic_id = o.clinic_id
+        left join public."user" u on u.id = o.created_by
+        where o.clinic_id = ${clinicId}::uuid and (${selectedPatientId || null}::uuid is null or o.patient_id = ${selectedPatientId || null}::uuid)
+        order by o.updated_at desc, o.created_at desc
+        limit 1000
+      `) as OdontogramEntry[],
+    ),
+    safeLoad<PatientOption[]>(
+      'load.patients',
+      [],
+      'Não foi possível carregar a lista de pacientes. Recarregue a página após conferir a conexão com o banco.',
+      async () => (await sql`
+        select id, full_name, cpf, birth_date, phone, email, address, guardian_name
+          from patients
+         where clinic_id = ${clinicId}::uuid and status = 'active'
+         order by full_name
+      `) as PatientOption[],
+    ),
+    safeLoad<ProcedureOption[]>(
+      'load.procedures',
+      [],
+      'Não foi possível carregar os procedimentos ativos. O cadastro de novos itens do odontograma pode ficar indisponível até a correção do banco.',
+      async () => (await sql`
+        select id, name
+          from procedures
+         where clinic_id = ${clinicId}::uuid and is_active = true
+         order by name
+      `) as ProcedureOption[],
+    ),
+    safeLoad<OdontogramTerm[]>(
+      'load.terms',
+      [],
+      'O histórico de termos do odontograma não pôde ser carregado. Execute a migration de compatibilidade do odontograma caso o banco ainda não tenha a tabela de termos.',
+      async () => (await sql`
+        select
+          t.id,
+          t.patient_id,
+          p.full_name as patient_name,
+          t.chart_type,
+          t.child_name,
+          t.birth_or_age,
+          t.guardian_name,
+          t.guardian_document,
+          t.guardian_phone,
+          t.relationship,
+          t.authorization_date,
+          t.professional_name,
+          t.authorized_procedures,
+          t.term_text,
+          t.related_teeth,
+          t.signature_data_url,
+          coalesce(t.status, 'draft') as status,
+          coalesce(t.version, 1) as version,
+          t.parent_term_id,
+          coalesce(created_user.name, created_user.email) as created_by_name,
+          coalesce(updated_user.name, updated_user.email) as updated_by_name,
+          t.created_at,
+          t.updated_at
+        from odontogram_terms t
+        join patients p on p.id = t.patient_id and p.clinic_id = t.clinic_id
+        left join public."user" created_user on created_user.id = t.created_by
+        left join public."user" updated_user on updated_user.id = t.updated_by
+        where t.clinic_id = ${clinicId}::uuid and (${selectedPatientId || null}::uuid is null or t.patient_id = ${selectedPatientId || null}::uuid)
+        order by t.updated_at desc, t.created_at desc
+        limit 100
+      `) as OdontogramTerm[],
+    ),
+  ])
+
+  return {
+    entries: entriesResult.data,
+    patients: patientsResult.data,
+    procedures: proceduresResult.data,
+    terms: termsResult.data,
+    warnings: [entriesResult.warning, patientsResult.warning, proceduresResult.warning, termsResult.warning].filter(Boolean) as string[],
+  }
+}
+
 async function assertOdontogramAccess() {
   return requireClinicAccess(['superadmin', 'admin', 'dentist'])
 }
@@ -117,7 +255,7 @@ async function saveOdontogramEntry(formData: FormData) {
       }
     }
   } catch (error) {
-    console.error('odontogram.save')
+    logOdontogramError('save.entry', error)
     target += '&error=N%C3%A3o+foi+poss%C3%ADvel+salvar+o+procedimento.+Verifique+os+dados+e+tente+novamente'
   }
 
@@ -144,7 +282,7 @@ async function deleteOdontogramEntry(formData: FormData) {
         : '&error=Registro+n%C3%A3o+encontrado+para+este+paciente'
     }
   } catch (error) {
-    console.error('odontogram.delete')
+    logOdontogramError('delete.entry', error)
     target += `${target.includes('?') ? '&' : '?'}error=N%C3%A3o+foi+poss%C3%ADvel+remover+o+procedimento`
   }
 
@@ -385,7 +523,7 @@ async function saveResponsibilityTerm(formData: FormData) {
       }
     }
   } catch (error) {
-    console.error('odontogram.term.save')
+    logOdontogramError('save.term', error)
     target += '&error=N%C3%A3o+foi+poss%C3%ADvel+salvar+o+termo.+Verifique+se+a+migration+foi+executada'
   }
 
@@ -418,7 +556,7 @@ async function deleteResponsibilityTerm(formData: FormData) {
         : '&error=Termo+n%C3%A3o+encontrado+para+este+paciente'
     }
   } catch (error) {
-    console.error('odontogram.term.delete')
+    logOdontogramError('delete.term', error)
     target += `${target.includes('?') ? '&' : '?'}error=N%C3%A3o+foi+poss%C3%ADvel+excluir+o+termo`
   }
 
@@ -433,68 +571,10 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const initialTab = (chartIdSet.has(params.tab || '') ? params.tab : 'adult') as OdontogramChartId
   const initialTermId = uuidPattern.test(params.term_id || '') ? params.term_id : ''
 
-  const [entries, patients, procedures, terms] = await Promise.all([
-    sql`
-      select
-        o.id,
-        o.patient_id,
-        p.full_name as patient_name,
-        o.tooth_code,
-        o.condition,
-        o.procedure_id,
-        pr.name as procedure_name,
-        o.planned_procedure,
-        o.performed_procedure,
-        o.notes,
-        coalesce(o.status, 'planned') as status,
-        o.scheduled_date,
-        coalesce(u.name, u.email) as created_by_name,
-        o.created_at,
-        o.updated_at
-      from odontogram_entries o
-      join patients p on p.id = o.patient_id and p.clinic_id = o.clinic_id
-      left join procedures pr on pr.id = o.procedure_id and pr.clinic_id = o.clinic_id
-      left join public."user" u on u.id = o.created_by
-      where o.clinic_id = ${clinic.id}::uuid and (${selectedPatientId || null}::uuid is null or o.patient_id = ${selectedPatientId || null}::uuid)
-      order by o.updated_at desc, o.created_at desc
-      limit 1000
-    `,
-    sql`select id, full_name, cpf, birth_date, phone, email, address, guardian_name from patients where clinic_id = ${clinic.id}::uuid and status = 'active' order by full_name`,
-    sql`select id, name from procedures where clinic_id = ${clinic.id}::uuid and is_active = true order by name`,
-    sql`
-      select
-        t.id,
-        t.patient_id,
-        p.full_name as patient_name,
-        t.chart_type,
-        t.child_name,
-        t.birth_or_age,
-        t.guardian_name,
-        t.guardian_document,
-        t.guardian_phone,
-        t.relationship,
-        t.authorization_date,
-        t.professional_name,
-        t.authorized_procedures,
-        t.term_text,
-        t.related_teeth,
-        t.signature_data_url,
-        coalesce(t.status, 'draft') as status,
-        coalesce(t.version, 1) as version,
-        t.parent_term_id,
-        coalesce(created_user.name, created_user.email) as created_by_name,
-        coalesce(updated_user.name, updated_user.email) as updated_by_name,
-        t.created_at,
-        t.updated_at
-      from odontogram_terms t
-      join patients p on p.id = t.patient_id and p.clinic_id = t.clinic_id
-      left join public."user" created_user on created_user.id = t.created_by
-      left join public."user" updated_user on updated_user.id = t.updated_by
-      where t.clinic_id = ${clinic.id}::uuid and (${selectedPatientId || null}::uuid is null or t.patient_id = ${selectedPatientId || null}::uuid)
-      order by t.updated_at desc, t.created_at desc
-      limit 100
-    `,
-  ])
+  const { entries, patients, procedures, terms, warnings } = await loadOdontogramData(clinic.id, selectedPatientId)
+  const feedbackError = [params.error, warnings.length ? `A tela abriu em modo seguro. ${warnings.join(' ')}` : null]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <section className='space-y-6'>
@@ -505,16 +585,16 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           Selecione um paciente, clique diretamente no dente desejado e registre o procedimento planejado. Dentes com registros aparecem destacados no mapa.
         </p>
       </div>
-      <FormFeedback ok={params.ok} error={params.error} />
+      <FormFeedback ok={params.ok} error={feedbackError || undefined} />
       <OdontogramClient
-        patients={patients as PatientOption[]}
-        procedures={procedures as ProcedureOption[]}
-        entries={entries as OdontogramEntry[]}
+        patients={patients}
+        procedures={procedures}
+        entries={entries}
         selectedPatientId={selectedPatientId}
         initialTab={initialTab}
         saveAction={saveOdontogramEntry}
         deleteAction={deleteOdontogramEntry}
-        terms={terms as OdontogramTerm[]}
+        terms={terms}
         initialTermId={initialTermId}
         saveTermAction={saveResponsibilityTerm}
         deleteTermAction={deleteResponsibilityTerm}
