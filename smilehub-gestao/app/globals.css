@@ -1344,9 +1344,38 @@ button[type='submit']:disabled,
 .auth-card {
   position: relative;
   overflow: hidden;
+  min-height: 0;
   border-radius: 32px !important;
   border: 1px solid rgba(255, 255, 255, 0.78) !important;
   box-shadow: 0 34px 90px rgba(26, 43, 60, 0.14) !important;
+}
+
+.auth-card--register {
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-block: 1rem max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.auth-card--register form {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.auth-card--register::-webkit-scrollbar {
+  width: 9px;
+}
+
+.auth-card--register::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.auth-card--register::-webkit-scrollbar-thumb {
+  border: 2px solid #e2e8f0;
+  border-radius: 999px;
+  background: #94a3b8;
 }
 
 .auth-card::before {
@@ -1372,6 +1401,7 @@ button[type='submit']:disabled,
   letter-spacing: -0.03em;
 }
 
+.auth-card input:not([type]),
 .auth-card input[type='email'],
 .auth-card input[type='password'],
 .auth-card input[type='tel'],
@@ -1379,8 +1409,10 @@ button[type='submit']:disabled,
 .auth-card input[type='color'],
 .auth-card select,
 .auth-card textarea {
+  width: 100%;
   border-radius: 14px !important;
   border-color: var(--premium-border) !important;
+  font-size: 16px;
   outline: none;
 }
 
@@ -1395,6 +1427,33 @@ button[type='submit']:disabled,
   border-radius: 15px !important;
   background: linear-gradient(135deg, var(--premium-navy), var(--premium-navy-2)) !important;
   box-shadow: 0 16px 36px rgba(4, 22, 39, 0.22);
+}
+
+@media (max-width: 1023px) {
+  .auth-layout {
+    min-height: auto;
+  }
+
+  .auth-card--register {
+    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-premium {
+    min-height: 100svh;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .auth-card {
+    border-radius: 24px !important;
+  }
+
+  .auth-card--register {
+    max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 1rem !important;
+  }
 }
 
 /* Subscription plans */

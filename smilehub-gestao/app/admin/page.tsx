@@ -204,7 +204,7 @@ function Admin() {
 
   return (
     <section className='auth-premium min-h-[100dvh] w-full px-4 py-5 sm:px-6 sm:py-8 lg:px-8'>
-      <div className='mx-auto grid min-h-[calc(100dvh-2.5rem)] w-full max-w-7xl items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center xl:gap-8'>
+      <div className='auth-layout mx-auto grid min-h-[calc(100dvh-2.5rem)] w-full max-w-7xl items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center xl:gap-8'>
         <aside className='order-2 space-y-5 lg:order-1'>
           <div className='rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-[0_28px_80px_rgba(26,43,60,0.13)] backdrop-blur sm:p-8'>
             <span className='inline-flex rounded-full bg-teal-50 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-teal-700'>SmileHub Gestão</span>
@@ -291,8 +291,8 @@ function Admin() {
           </div>
         </aside>
 
-        <div id='login-smilehub' className={`auth-card order-1 w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:order-2 ${isRegistering ? 'lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto' : ''}`}>
-          <form className='flex w-full flex-col gap-4' onSubmit={handleSubmit} aria-busy={isLoading}>
+        <div id='login-smilehub' className={`auth-card order-1 min-h-0 w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:order-2 ${isRegistering ? 'auth-card--register' : ''}`}>
+          <form className='flex w-full flex-col gap-4 pb-1' onSubmit={handleSubmit} aria-busy={isLoading}>
             <h1 className='text-center text-2xl font-semibold text-slate-900 sm:text-3xl'>
               {isRegistering ? 'Criar conta SmileHub' : 'Entrar na SmileHub'}
             </h1>
