@@ -94,6 +94,29 @@ body {
   filter: drop-shadow(0 9px 12px rgba(15, 23, 42, 0.14));
 }
 
+.odontogram-arc-scroll {
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.odontogram-arc-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.odontogram-arc-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+@media (max-width: 640px) {
+  .odontogram-screen input,
+  .odontogram-screen select,
+  .odontogram-screen textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
 
 .hero-container {
   position: relative;
@@ -1449,8 +1472,7 @@ button[type='submit']:disabled,
     box-shadow: none !important;
   }
 
-  body.print-odontogram:not(.print-odontogram-term) .odontogram-print-map-only,
-  body.print-odontogram.print-odontogram-term .odontogram-print-term-only {
+  body.print-odontogram .odontogram-print-map-only {
     display: block !important;
   }
 
@@ -1458,15 +1480,28 @@ button[type='submit']:disabled,
     width: 100% !important;
     color: #0f172a !important;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
-    page-break-inside: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
   }
 
   body.print-odontogram .odontogram-print-chart,
   body.print-odontogram .odontogram-print-tooth,
-  body.print-odontogram table,
   body.print-odontogram th,
   body.print-odontogram td {
     break-inside: avoid;
+  }
+
+  body.print-odontogram thead {
+    display: table-header-group;
+  }
+
+  body.print-odontogram tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.print-odontogram table {
+    font-size: 10px !important;
   }
 
   body.print-odontogram img.odontogram-tooth-image,
@@ -1475,14 +1510,4 @@ button[type='submit']:disabled,
     -webkit-print-color-adjust: exact;
   }
 
-  body.print-odontogram-blank .odontogram-print-filled-only,
-  body.print-odontogram-blank .odontogram-print-status {
-    display: none !important;
-  }
-
-  body.print-odontogram-blank .odontogram-print-tooth {
-    border-color: #cbd5e1 !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-  }
 }

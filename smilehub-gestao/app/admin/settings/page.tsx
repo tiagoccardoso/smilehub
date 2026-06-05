@@ -259,6 +259,64 @@ async function saveNfseCertificate(formData: FormData) {
   redirect(`${target}#nfse-certificate`);
 }
 
+
+async function saveDeepSeekSettings(formData: FormData) {
+  "use server";
+  const { clinic, admin } = await requireSettingsAccess();
+  let target = "/admin/settings";
+
+  try {
+    const rawToken = String(formData.get("deepseek_api_key") || "").trim();
+    const removeToken = formData.get("remove_deepseek_token") === "on";
+    const model = String(formData.get("deepseek_model") || "deepseek-v4-flash");
+    const safeModel = ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"].includes(model)
+      ? model
+      : "deepseek-v4-flash";
+
+    const currentRows = await sql`
+      select encrypted_api_key
+        from clinic_ai_settings
+       where clinic_id = ${clinic.id}::uuid and provider = 'deepseek'
+       limit 1
+    `;
+    const current = (currentRows as any[])[0] || {};
+
+    const encryptedToken = removeToken
+      ? null
+      : rawToken
+        ? encryptSecret(rawToken)
+        : current.encrypted_api_key || null;
+    const status = encryptedToken ? "configured" : "not_configured";
+
+    await sql`
+      insert into clinic_ai_settings (clinic_id, provider, model, encrypted_api_key, status, updated_by)
+      values (${clinic.id}::uuid, 'deepseek', ${safeModel}, ${encryptedToken}, ${status}, ${admin.profile.id}::uuid)
+      on conflict (clinic_id, provider) do update set
+        model = excluded.model,
+        encrypted_api_key = excluded.encrypted_api_key,
+        status = excluded.status,
+        updated_by = excluded.updated_by,
+        updated_at = now()
+    `;
+
+    target += removeToken
+      ? "?ok=Token+DeepSeek+removido+com+sucesso"
+      : encryptedToken
+        ? "?ok=Configura%C3%A7%C3%A3o+DeepSeek+salva+com+sucesso"
+        : "?error=Informe+um+token+DeepSeek+ou+marque+a+op%C3%A7%C3%A3o+de+remover";
+  } catch (error: any) {
+    console.error("deepseek-settings.save");
+    const message = String(error?.message || "");
+    const safeMessage = message.startsWith("Chave de criptografia ausente")
+      ? "Chave de criptografia ausente no servidor. Configure NEON_AUTH_COOKIE_SECRET ou NFSE_CERTIFICATE_ENCRYPTION_KEY."
+      : "Não foi possível salvar a configuração da DeepSeek.";
+    target += `?error=${encodeURIComponent(safeMessage).replace(/%20/g, "+")}`;
+  }
+
+  revalidatePath("/admin/settings");
+  redirect(`${target}#deepseek-ai`);
+}
+
 async function saveSettings(formData: FormData) {
   "use server";
   const { clinic } = await requireSettingsAccess();
@@ -326,6 +384,19 @@ export default async function Page({
     nfseCertificate = null;
   }
 
+  let deepseekSettings: any | null = null;
+  try {
+    const deepseekRows = await sql`
+      select provider, model, status, updated_at
+        from clinic_ai_settings
+       where clinic_id = ${clinic.id}::uuid and provider = 'deepseek'
+       limit 1
+    `;
+    deepseekSettings = (deepseekRows as any[])[0] ?? null;
+  } catch {
+    deepseekSettings = null;
+  }
+
   return (
     <section className="space-y-6">
       <div>
@@ -334,8 +405,8 @@ export default async function Page({
         </p>
         <h1 className="text-2xl font-bold">Configurações</h1>
         <p className="text-sm text-gray-600">
-          Gerencie dados da clínica, conteúdo público, perfil e certificado
-          digital fiscal.
+          Gerencie dados da clínica, conteúdo público, perfil, certificado
+          digital fiscal e integração com IA.
         </p>
       </div>
       <FormFeedback ok={params.ok} error={params.error} />
@@ -357,6 +428,13 @@ export default async function Page({
           className="rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50"
         >
           Certificado NFS-e
+        </a>
+        <a
+          role="tab"
+          href="#deepseek-ai"
+          className="rounded-full border px-4 py-2 text-sm font-semibold hover:bg-blue-50"
+        >
+          IA DeepSeek
         </a>
         <a
           role="tab"
@@ -697,6 +775,77 @@ export default async function Page({
           Remover arquivo e senha do certificado atual
         </label>
         <SubmitButton label="Salvar certificado digital" />
+      </form>
+
+      <form
+        id="deepseek-ai"
+        action={saveDeepSeekSettings}
+        className="scroll-mt-6 space-y-4 rounded-xl border bg-white p-5 shadow-sm"
+      >
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+            Inteligência artificial
+          </p>
+          <h2 className="text-xl font-bold">IA DeepSeek</h2>
+          <p className="text-sm text-gray-500">
+            Configure o token usado pelo assistente do odontograma para sugerir textos do termo de responsabilidade. O token é criptografado no servidor e nunca é exibido após salvar.
+          </p>
+        </div>
+
+        <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+          <p>
+            <strong>Status:</strong>{" "}
+            {deepseekSettings?.status === "configured" ? "Configurado" : "Não configurado"}
+          </p>
+          <p>
+            <strong>Modelo:</strong>{" "}
+            {deepseekSettings?.model || "deepseek-v4-flash"}
+          </p>
+          <p>
+            <strong>Última atualização:</strong>{" "}
+            {deepseekSettings?.updated_at
+              ? new Date(deepseekSettings.updated_at).toLocaleString("pt-BR")
+              : "não informado"}
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label>
+            Modelo DeepSeek
+            <select
+              name="deepseek_model"
+              defaultValue={deepseekSettings?.model || "deepseek-v4-flash"}
+            >
+              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+              <option value="deepseek-chat">deepseek-chat (compatibilidade)</option>
+            </select>
+          </label>
+          <label>
+            Token/API Key da DeepSeek
+            <input
+              name="deepseek_api_key"
+              type="password"
+              autoComplete="new-password"
+              placeholder={
+                deepseekSettings?.status === "configured"
+                  ? "Deixe em branco para manter o token atual"
+                  : "Cole o token da DeepSeek"
+              }
+            />
+          </label>
+        </div>
+
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-800">
+          <p>
+            O token é usado apenas em chamadas server-side para a DeepSeek. Não salve chaves em arquivos públicos, console, localStorage ou código versionado.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="remove_deepseek_token" />
+          Remover token DeepSeek atual
+        </label>
+        <SubmitButton label="Salvar configuração DeepSeek" />
       </form>
 
       <div className="space-y-8">

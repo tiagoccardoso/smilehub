@@ -29,3 +29,21 @@ export function encryptSecret(value: string | Buffer) {
     encrypted.toString("base64url"),
   ].join(":");
 }
+
+export function decryptSecret(value: string) {
+  const [version, iv, tag, encrypted] = String(value || "").split(":");
+  if (version !== VERSION || !iv || !tag || !encrypted)
+    throw new Error("Secret criptografado inválido");
+
+  const decipher = crypto.createDecipheriv(
+    ALGORITHM,
+    getKey(),
+    Buffer.from(iv, "base64url"),
+  );
+  decipher.setAuthTag(Buffer.from(tag, "base64url"));
+
+  return Buffer.concat([
+    decipher.update(Buffer.from(encrypted, "base64url")),
+    decipher.final(),
+  ]).toString("utf8");
+}
