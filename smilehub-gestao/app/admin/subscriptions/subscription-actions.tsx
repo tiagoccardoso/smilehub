@@ -3,8 +3,9 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/app/components/AppProvider'
+import { publicSubscriptionPlans, type PublicSubscriptionPlanCode } from '@/lib/subscriptionPlans'
 
-type PlanCode = 'trial' | 'mensal' | 'anual'
+type PlanCode = PublicSubscriptionPlanCode
 
 type SubscriptionActionsProps = {
   currentPlan?: string | null
@@ -129,42 +130,34 @@ export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialA
       {error ? <p className='rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700'>{error}</p> : null}
 
       <div className='grid gap-4 lg:grid-cols-3'>
-        <article className='subscription-plan-card premium-card'>
-          <div>
-            <span className='premium-status'>Teste</span>
-            <h2>Teste Grátis</h2>
-            <strong>7 dias grátis</strong>
-            <p>Acesso completo ao sistema para testar agenda, pacientes, odontograma, financeiro e configurações.</p>
-          </div>
-          <button type='button' className='subscription-plan-button' onClick={startTrial} disabled={Boolean(loading) || !trialAvailable}>
-            {trialAvailable ? 'Ativar teste grátis' : 'Teste grátis já utilizado'}
-          </button>
-        </article>
+        {publicSubscriptionPlans.map(plan => {
+          const isTrial = plan.code === 'trial'
+          const isCurrent = currentPlan === plan.code
+          const disabled = Boolean(loading) || (isTrial ? !trialAvailable : isCurrent)
+          const buttonLabel = isTrial
+            ? trialAvailable ? plan.ctaLabel : 'Teste grátis já utilizado'
+            : isCurrent ? 'Plano atual' : plan.ctaLabel
 
-        <article className='subscription-plan-card premium-card'>
-          <div>
-            <span className='premium-status'>Mensal</span>
-            <h2>Plano Mensal</h2>
-            <strong>R$ 79,00/mês</strong>
-            <p>Acesso completo ao sistema.<br />Ideal para consultórios que querem começar com baixo investimento.</p>
-          </div>
-          <button type='button' className='subscription-plan-button' onClick={() => checkout('mensal')} disabled={Boolean(loading) || currentPlan === 'mensal'}>
-            {currentPlan === 'mensal' ? 'Plano atual' : 'Assinar mensal'}
-          </button>
-        </article>
-
-        <article className='subscription-plan-card subscription-plan-featured premium-card'>
-          <div>
-            <span className='premium-status'>Melhor Oferta</span>
-            <h2>Plano Anual — Melhor Oferta</h2>
-            <strong>12x de R$ 59,90</strong>
-            <small>ou R$ 718,80/ano</small>
-            <p>Economia de R$ 229,20 por ano em comparação ao plano mensal.</p>
-          </div>
-          <button type='button' className='subscription-plan-button subscription-plan-button-featured' onClick={() => checkout('anual')} disabled={Boolean(loading) || currentPlan === 'anual'}>
-            {currentPlan === 'anual' ? 'Plano atual' : 'Assinar anual'}
-          </button>
-        </article>
+          return (
+            <article key={plan.code} className={`subscription-plan-card premium-card ${plan.featured ? 'subscription-plan-featured' : ''}`}>
+              <div>
+                <span className='premium-status'>{plan.badge}</span>
+                <h2>{plan.featured ? `${plan.title} — Melhor Oferta` : plan.title}</h2>
+                <strong>{plan.price}</strong>
+                {plan.priceNote ? <small>{plan.priceNote}</small> : null}
+                <p>{plan.description}</p>
+              </div>
+              <button
+                type='button'
+                className={`subscription-plan-button ${plan.featured ? 'subscription-plan-button-featured' : ''}`}
+                onClick={isTrial ? startTrial : () => checkout(plan.code as Extract<PlanCode, 'mensal' | 'anual'>)}
+                disabled={disabled}
+              >
+                {buttonLabel}
+              </button>
+            </article>
+          )
+        })}
       </div>
 
       {hasStripeSubscription ? (
