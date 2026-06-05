@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { useFormStatus } from 'react-dom'
+import { createPortal, useFormStatus } from 'react-dom'
 import { SubmitButton } from '../_components/submit-button'
 import {
   ODONTOGRAM_CHARTS,
@@ -876,6 +876,8 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
   const [term, setTerm] = useState<ResponsibilityTerm>(emptyResponsibilityTerm)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiFeedback, setAiFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+  const closeProcedureButtonRef = useRef<HTMLButtonElement | null>(null)
 
   const activeChart = chartsById.get(activeChartId) ?? ODONTOGRAM_CHARTS[0]
   const selectedPatient = patients.find(patient => patient.id === selectedPatientId)
@@ -890,6 +892,10 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
   const currentEntry = selectedEntries[0]
   const disabledChart = !selectedPatientId
   const suggestedProcedures = entriesForCurrentChart.map(entry => `Dente ${entry.tooth_code}: ${entryProcedure(entry)} (${toothVisualStatus(entry).label})`).join('; ')
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   function loadSavedTerm(savedTerm: OdontogramTerm) {
     setSelectedTermId(savedTerm.id)
@@ -920,6 +926,9 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    document.body.classList.add('odontogram-modal-open')
+
+    window.setTimeout(() => closeProcedureButtonRef.current?.focus(), 0)
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelectedTooth(null)
@@ -928,6 +937,7 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       document.body.style.overflow = previousOverflow
+      document.body.classList.remove('odontogram-modal-open')
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [selectedTooth, selectedPatientId])
@@ -1032,6 +1042,114 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
   const upperTeeth = activeChart.teeth.filter(tooth => tooth.arch === 'upper')
   const lowerTeeth = activeChart.teeth.filter(tooth => tooth.arch === 'lower')
 
+  const procedureEditor = selectedTooth && selectedPatientId ? (
+  <div
+    className='odontogram-procedure-backdrop fixed inset-0 z-[1000] flex items-end justify-center overflow-hidden bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+    role='dialog'
+    aria-modal='true'
+    aria-labelledby='odontogram-modal-title'
+    onMouseDown={event => {
+      if (event.target === event.currentTarget) setSelectedTooth(null)
+    }}
+  >
+    <div className='odontogram-procedure-sheet flex w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-4xl sm:rounded-[2rem]'>
+      <div className='border-b border-slate-100 bg-white/95 px-4 py-4 sm:px-6'>
+        <div className='flex items-start justify-between gap-4'>
+          <div className='flex min-w-0 items-start gap-3'>
+            {selectedToothConfig ? (
+              <span className='flex h-20 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:h-24 sm:w-20'>
+                <img src={selectedToothConfig.image} alt={`Imagem realista do dente ${selectedTooth}`} className='h-full w-full object-contain' draggable={false} />
+              </span>
+            ) : null}
+            <div className='min-w-0'>
+              <p className='text-xs font-extrabold uppercase tracking-wide text-blue-700 sm:text-sm'>Dente selecionado</p>
+              <h2 id='odontogram-modal-title' className='text-2xl font-extrabold sm:text-3xl'>Dente {selectedTooth}</h2>
+              <p className='truncate text-sm text-slate-600'>{selectedPatient?.full_name}</p>
+            </div>
+          </div>
+          <button ref={closeProcedureButtonRef} type='button' onClick={() => setSelectedTooth(null)} className='min-h-11 shrink-0 rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100' aria-label='Fechar edição do dente'>Fechar</button>
+        </div>
+      </div>
+
+      <div className='odontogram-procedure-scroll flex-1 overflow-y-auto px-4 py-4 sm:px-6'>
+        <form key={`${selectedTooth}-${currentEntry?.id ?? 'new'}`} action={saveAction} className='odontogram-procedure-form grid gap-4 sm:grid-cols-2'>
+          <input type='hidden' name='patient_id' value={selectedPatientId} />
+          <input type='hidden' name='tooth_code' value={selectedTooth} />
+          <input type='hidden' name='entry_id' value={currentEntry?.id ?? ''} />
+          <input type='hidden' name='chart_type' value={activeChart.id} />
+
+          <label className='space-y-1.5'>
+            <span>Procedimento cadastrado</span>
+            <select name='procedure_id' defaultValue={currentEntry?.procedure_id ?? ''} aria-label='Procedimento cadastrado'>
+              <option value=''>Procedimento avulso/manual</option>
+              {procedures.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
+            </select>
+          </label>
+
+          <label className='space-y-1.5'>
+            <span>Status</span>
+            <select name='status' defaultValue={currentEntry?.status ?? 'planned'} aria-label='Status do procedimento'>
+              {ODONTOGRAM_STATUS.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}
+            </select>
+          </label>
+
+          <label className='space-y-1.5 sm:col-span-2'>
+            <span>Procedimento a realizar <strong className='text-red-600'>*</strong></span>
+            <input type='text' name='planned_procedure' required maxLength={180} defaultValue={currentEntry?.planned_procedure ?? currentEntry?.procedure_name ?? ''} placeholder='Ex.: restauração em resina, limpeza, extração...' aria-label='Procedimento a realizar' />
+          </label>
+
+          <label className='space-y-1.5'>
+            <span>Condição do dente</span>
+            <input type='text' name='condition' maxLength={120} defaultValue={currentEntry?.condition ?? ''} placeholder='Ex.: cárie, fratura, sensibilidade' aria-label='Condição do dente' />
+          </label>
+
+          <label className='space-y-1.5'>
+            <span>Data prevista</span>
+            <input name='scheduled_date' type='date' defaultValue={normalizeDate(currentEntry?.scheduled_date ?? null)} className='block w-full rounded-md border border-slate-200 p-2' aria-label='Data prevista do procedimento' />
+          </label>
+
+          <label className='space-y-1.5 sm:col-span-2'>
+            <span>Observações clínicas</span>
+            <textarea name='notes' maxLength={1200} rows={5} defaultValue={currentEntry?.notes ?? ''} placeholder='Registre observações relevantes para este dente.' aria-label='Observações clínicas do dente' />
+          </label>
+
+          <div className='odontogram-procedure-footer flex flex-col gap-3 border-t border-slate-100 bg-white pt-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between'>
+            <p className='text-xs text-slate-500'>Ao salvar, o procedimento fica vinculado ao paciente, ao dente selecionado e à aba atual.</p>
+            <SubmitButton label={currentEntry ? 'Atualizar procedimento' : 'Salvar procedimento'} />
+          </div>
+        </form>
+
+        {currentEntry ? (
+          <form action={deleteAction} className='odontogram-delete-procedure-form mt-4 flex justify-end'>
+            <input type='hidden' name='patient_id' value={selectedPatientId} />
+            <input type='hidden' name='entry_id' value={currentEntry.id} />
+            <input type='hidden' name='chart_type' value={activeChart.id} />
+            <button type='submit' className='min-h-11 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50'>Remover procedimento deste dente</button>
+          </form>
+        ) : null}
+
+        {selectedEntries.length > 1 ? (
+          <div className='odontogram-tooth-history mt-5 rounded-2xl bg-slate-50 p-3'>
+            <h3 className='font-semibold'>Histórico deste dente</h3>
+            <ul className='odontogram-procedure-history mt-2 max-h-64 space-y-2 overflow-y-auto pr-1 text-sm'>
+              {selectedEntries.slice(1).map(entry => {
+                const visualStatus = toothVisualStatus(entry)
+                const style = statusStyle(visualStatus.key)
+                return (
+                  <li key={entry.id} className={`rounded-xl border bg-white p-3 ${style.border}`}>
+                    <span className='font-semibold'>{entryProcedure(entry)}</span>
+                    <span className={`mt-1 block text-xs font-bold ${style.text}`}>{visualStatus.label} · {normalizeDate(entry.scheduled_date) || 'Sem data prevista'}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  </div>
+) : null
+
   return (
     <>
       <div className='odontogram-screen space-y-6 overflow-hidden sm:overflow-visible'>
@@ -1115,114 +1233,9 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
           deleteTermAction={deleteTermAction}
         />
 
-        {selectedTooth && selectedPatientId ? (
-          <div
-            className='odontogram-procedure-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4'
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='odontogram-modal-title'
-            onMouseDown={event => {
-              if (event.target === event.currentTarget) setSelectedTooth(null)
-            }}
-          >
-            <div className='odontogram-procedure-sheet flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:max-w-4xl sm:rounded-[2rem]'>
-              <div className='border-b border-slate-100 bg-white/95 px-4 py-4 sm:px-6'>
-                <div className='flex items-start justify-between gap-4'>
-                  <div className='flex min-w-0 items-start gap-3'>
-                    {selectedToothConfig ? (
-                      <span className='flex h-20 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:h-24 sm:w-20'>
-                        <img src={selectedToothConfig.image} alt={`Imagem realista do dente ${selectedTooth}`} className='h-full w-full object-contain' draggable={false} />
-                      </span>
-                    ) : null}
-                    <div className='min-w-0'>
-                      <p className='text-xs font-extrabold uppercase tracking-wide text-blue-700 sm:text-sm'>Dente selecionado</p>
-                      <h2 id='odontogram-modal-title' className='text-2xl font-extrabold sm:text-3xl'>Dente {selectedTooth}</h2>
-                      <p className='truncate text-sm text-slate-600'>{selectedPatient?.full_name}</p>
-                    </div>
-                  </div>
-                  <button type='button' onClick={() => setSelectedTooth(null)} className='min-h-11 shrink-0 rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50' aria-label='Fechar edição do dente'>Fechar</button>
-                </div>
-              </div>
-
-              <div className='odontogram-procedure-scroll flex-1 overflow-y-auto px-4 py-4 sm:px-6'>
-                <form action={saveAction} className='odontogram-procedure-form grid gap-4 sm:grid-cols-2'>
-                  <input type='hidden' name='patient_id' value={selectedPatientId} />
-                  <input type='hidden' name='tooth_code' value={selectedTooth} />
-                  <input type='hidden' name='entry_id' value={currentEntry?.id ?? ''} />
-                  <input type='hidden' name='chart_type' value={activeChart.id} />
-
-                  <label className='space-y-1.5'>
-                    <span>Procedimento cadastrado</span>
-                    <select name='procedure_id' defaultValue={currentEntry?.procedure_id ?? ''} aria-label='Procedimento cadastrado'>
-                      <option value=''>Procedimento avulso/manual</option>
-                      {procedures.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
-                    </select>
-                  </label>
-
-                  <label className='space-y-1.5'>
-                    <span>Status</span>
-                    <select name='status' defaultValue={currentEntry?.status ?? 'planned'} aria-label='Status do procedimento'>
-                      {ODONTOGRAM_STATUS.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}
-                    </select>
-                  </label>
-
-                  <label className='space-y-1.5 sm:col-span-2'>
-                    <span>Procedimento a realizar <strong className='text-red-600'>*</strong></span>
-                    <input type='text' name='planned_procedure' required maxLength={180} defaultValue={currentEntry?.planned_procedure ?? currentEntry?.procedure_name ?? ''} placeholder='Ex.: restauração em resina, limpeza, extração...' aria-label='Procedimento a realizar' />
-                  </label>
-
-                  <label className='space-y-1.5'>
-                    <span>Condição do dente</span>
-                    <input type='text' name='condition' maxLength={120} defaultValue={currentEntry?.condition ?? ''} placeholder='Ex.: cárie, fratura, sensibilidade' aria-label='Condição do dente' />
-                  </label>
-
-                  <label className='space-y-1.5'>
-                    <span>Data prevista</span>
-                    <input name='scheduled_date' type='date' defaultValue={normalizeDate(currentEntry?.scheduled_date ?? null)} className='block w-full rounded-md border border-slate-200 p-2' aria-label='Data prevista do procedimento' />
-                  </label>
-
-                  <label className='space-y-1.5 sm:col-span-2'>
-                    <span>Observações clínicas</span>
-                    <textarea name='notes' maxLength={1200} rows={5} defaultValue={currentEntry?.notes ?? ''} placeholder='Registre observações relevantes para este dente.' aria-label='Observações clínicas do dente' />
-                  </label>
-
-                  <div className='odontogram-procedure-footer flex flex-col gap-3 border-t border-slate-100 bg-white pt-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between'>
-                    <p className='text-xs text-slate-500'>Ao salvar, o procedimento fica vinculado ao paciente, ao dente selecionado e à aba atual.</p>
-                    <SubmitButton label={currentEntry ? 'Atualizar procedimento' : 'Salvar procedimento'} />
-                  </div>
-                </form>
-
-                {currentEntry ? (
-                  <form action={deleteAction} className='odontogram-delete-procedure-form mt-4 flex justify-end'>
-                    <input type='hidden' name='patient_id' value={selectedPatientId} />
-                    <input type='hidden' name='entry_id' value={currentEntry.id} />
-                    <input type='hidden' name='chart_type' value={activeChart.id} />
-                    <button type='submit' className='min-h-11 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50'>Remover procedimento deste dente</button>
-                  </form>
-                ) : null}
-
-                {selectedEntries.length > 1 ? (
-                  <div className='odontogram-tooth-history mt-5 rounded-2xl bg-slate-50 p-3'>
-                    <h3 className='font-semibold'>Histórico deste dente</h3>
-                    <ul className='odontogram-procedure-history mt-2 max-h-64 space-y-2 overflow-y-auto pr-1 text-sm'>
-                      {selectedEntries.slice(1).map(entry => {
-                        const visualStatus = toothVisualStatus(entry)
-                        const style = statusStyle(visualStatus.key)
-                        return (
-                          <li key={entry.id} className={`rounded-xl border bg-white p-3 ${style.border}`}>
-                            <span className='font-semibold'>{entryProcedure(entry)}</span>
-                            <span className={`mt-1 block text-xs font-bold ${style.text}`}>{visualStatus.label} · {normalizeDate(entry.scheduled_date) || 'Sem data prevista'}</span>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
+
+      {isMounted && procedureEditor ? createPortal(procedureEditor, document.body) : null}
 
       <PrintMapArea chart={activeChart} patient={selectedPatient} entries={entriesForCurrentChart} entriesByTooth={entriesByTooth} />
       <PrintTermArea chart={activeChart} patient={selectedPatient} entries={entriesForCurrentChart} term={term} suggestedProcedures={suggestedProcedures} signatureDataUrl={signatureDataUrl} />

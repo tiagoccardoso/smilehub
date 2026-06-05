@@ -137,16 +137,31 @@ body {
   background: #94a3b8;
 }
 
+body.odontogram-modal-open {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 .odontogram-procedure-backdrop {
-  padding-bottom: env(safe-area-inset-bottom);
+  width: 100vw;
+  height: 100dvh;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
 }
 
 .odontogram-procedure-sheet {
   contain: layout;
+  max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 
-.admin-content .odontogram-procedure-form,
-.admin-content .odontogram-delete-procedure-form {
+.odontogram-procedure-scroll {
+  min-height: 0;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.odontogram-procedure-form,
+.odontogram-delete-procedure-form {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -164,9 +179,23 @@ body {
 .odontogram-procedure-form input,
 .odontogram-procedure-form select,
 .odontogram-procedure-form textarea {
+  width: 100%;
   min-height: 48px;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 14px !important;
+  background: #fff !important;
+  color: var(--premium-text);
+  padding: 11px 13px !important;
   font-size: 16px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.odontogram-procedure-form input:focus,
+.odontogram-procedure-form select:focus,
+.odontogram-procedure-form textarea:focus {
+  border-color: var(--premium-mint) !important;
+  box-shadow: 0 0 0 4px rgba(79, 209, 197, 0.17);
 }
 
 .odontogram-procedure-form textarea {
@@ -188,8 +217,15 @@ body {
     font-size: 16px;
   }
 
+  .odontogram-procedure-backdrop {
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .odontogram-procedure-sheet {
-    height: 96dvh;
+    height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
 
   .odontogram-procedure-footer {
