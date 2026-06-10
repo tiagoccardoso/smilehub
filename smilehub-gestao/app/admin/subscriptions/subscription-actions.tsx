@@ -9,6 +9,7 @@ type PlanCode = PublicSubscriptionPlanCode
 
 type SubscriptionActionsProps = {
   currentPlan?: string | null
+  currentStatus?: string | null
   hasStripeSubscription: boolean
   trialAvailable: boolean
 }
@@ -25,7 +26,11 @@ function actionLabel(action: string | null) {
   }
 }
 
-export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialAvailable }: SubscriptionActionsProps) {
+function isPaidPlanActive(status?: string | null) {
+  return status === 'active'
+}
+
+export function SubscriptionActions({ currentPlan, currentStatus, hasStripeSubscription, trialAvailable }: SubscriptionActionsProps) {
   const router = useRouter()
   const { refreshSession } = useAuth()
   const [loading, setLoading] = useState<string | null>(null)
@@ -122,6 +127,7 @@ export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialA
   }
 
   const busyLabel = actionLabel(loading)
+  const currentPaidPlanIsActive = isPaidPlanActive(currentStatus) && (currentPlan === 'mensal' || currentPlan === 'anual')
 
   return (
     <div className='space-y-4'>
@@ -132,11 +138,20 @@ export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialA
       <div className='grid gap-4 lg:grid-cols-3'>
         {publicSubscriptionPlans.map(plan => {
           const isTrial = plan.code === 'trial'
-          const isCurrent = currentPlan === plan.code
+          const isCurrent = currentPaidPlanIsActive && currentPlan === plan.code
+          const isMonthlyToAnnualMigration = currentPaidPlanIsActive && currentPlan === 'mensal' && plan.code === 'anual' && hasStripeSubscription
+          const shouldUsePortalForPlanChange = currentPaidPlanIsActive && !isCurrent && !isMonthlyToAnnualMigration
           const disabled = Boolean(loading) || (isTrial ? !trialAvailable : isCurrent)
           const buttonLabel = isTrial
             ? trialAvailable ? plan.ctaLabel : 'Teste grátis já utilizado'
-            : isCurrent ? 'Plano atual' : plan.ctaLabel
+            : isCurrent ? 'Plano atual' : isMonthlyToAnnualMigration ? 'Migrar para anual' : shouldUsePortalForPlanChange ? 'Alterar no portal' : plan.ctaLabel
+          const handleClick = isTrial
+            ? startTrial
+            : isMonthlyToAnnualMigration
+              ? migrateToAnnual
+              : shouldUsePortalForPlanChange
+                ? openPortal
+                : () => checkout(plan.code as Extract<PlanCode, 'mensal' | 'anual'>)
 
           return (
             <article key={plan.code} className={`subscription-plan-card premium-card ${plan.featured ? 'subscription-plan-featured' : ''}`}>
@@ -150,7 +165,7 @@ export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialA
               <button
                 type='button'
                 className={`subscription-plan-button ${plan.featured ? 'subscription-plan-button-featured' : ''}`}
-                onClick={isTrial ? startTrial : () => checkout(plan.code as Extract<PlanCode, 'mensal' | 'anual'>)}
+                onClick={handleClick}
                 disabled={disabled}
               >
                 {buttonLabel}
@@ -167,7 +182,7 @@ export function SubscriptionActions({ currentPlan, hasStripeSubscription, trialA
             <p>Use estas opções para cancelar, migrar do mensal para o anual ou abrir o portal seguro do Stripe.</p>
           </div>
           <div className='subscription-management-actions'>
-            {currentPlan === 'mensal' ? <button type='button' className='subscription-plan-button' onClick={migrateToAnnual} disabled={Boolean(loading)}>Migrar para anual</button> : null}
+            {currentPaidPlanIsActive && currentPlan === 'mensal' ? <button type='button' className='subscription-plan-button' onClick={migrateToAnnual} disabled={Boolean(loading)}>Migrar para anual</button> : null}
             <button type='button' className='subscription-plan-button' onClick={openPortal} disabled={Boolean(loading)}>Portal do Stripe</button>
             <button type='button' className='subscription-danger-button' onClick={cancelSubscription} disabled={Boolean(loading)}>Cancelar assinatura</button>
           </div>

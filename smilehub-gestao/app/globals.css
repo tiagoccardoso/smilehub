@@ -1727,3 +1727,134 @@ button[type='submit']:disabled,
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* Admin help and training panel */
+.admin-help-box {
+  position: relative;
+}
+
+.admin-help-panel {
+  width: min(94vw, 560px);
+  max-height: min(78vh, 720px);
+}
+
+.admin-help-training {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-help-training article {
+  border: 1px solid var(--premium-border);
+  border-radius: 16px;
+  background: var(--premium-surface-low);
+  padding: 12px;
+}
+
+.admin-help-training strong,
+.admin-help-chat > strong {
+  display: block;
+  color: var(--premium-navy);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-help-training p {
+  margin: 5px 0 0;
+  color: var(--premium-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.admin-help-chat {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  border-top: 1px solid var(--premium-border);
+  padding-top: 14px;
+}
+
+.admin-help-chat-messages {
+  display: grid;
+  max-height: 260px;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-help-message {
+  margin: 0;
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.admin-help-message-user {
+  justify-self: end;
+  max-width: 86%;
+  background: var(--premium-navy);
+  color: #fff;
+}
+
+.admin-help-message-assistant {
+  justify-self: start;
+  max-width: 92%;
+  border: 1px solid var(--premium-border);
+  background: #fff;
+  color: var(--premium-navy);
+}
+
+.admin-help-error {
+  margin: 0;
+  border-radius: 12px;
+  background: #fff1f2;
+  padding: 9px 10px;
+  color: var(--premium-danger);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-help-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.admin-help-chat-form input {
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--premium-border);
+  padding: 0 12px;
+  font-size: 0.88rem;
+}
+
+.admin-help-chat-form button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--premium-navy), var(--premium-navy-2));
+  color: #fff;
+  padding: 0 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-help-chat-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .admin-help-panel,
+  .admin-alert-panel {
+    right: -56px;
+    width: calc(100vw - 24px);
+  }
+
+  .admin-help-chat-form {
+    grid-template-columns: 1fr;
+  }
+}

@@ -15,6 +15,16 @@ export async function POST(req: Request) {
     const plan = body.plan as SubscriptionPlanCode
     if (!paidPlans.has(plan)) return Response.json({ message: 'Plano inválido para checkout.' }, { status: 400 })
 
+    if (context.subscription?.status === 'active' && context.subscription?.stripe_subscription_id) {
+      if (context.subscription.plan_code === plan) {
+        return Response.json({ message: 'Este plano já está ativo para a clínica.' }, { status: 400 })
+      }
+      if (context.subscription.plan_code === 'mensal' && plan === 'anual') {
+        return Response.json({ message: 'Use a opção de migração para trocar do plano mensal para o anual.' }, { status: 409 })
+      }
+      return Response.json({ message: 'Use o portal do Stripe para alterar uma assinatura ativa.' }, { status: 409 })
+    }
+
     const priceId = getPriceIdForPlan(plan)
     if (!priceId) return Response.json({ message: `Configure o ID de preço Stripe para o plano ${plan}.` }, { status: 500 })
 

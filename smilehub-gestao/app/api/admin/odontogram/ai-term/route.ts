@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     console.error('odontogram.ai-term')
     return Response.json(
-      { message: 'Não foi possível gerar a sugestão do termo no momento.' },
+      { message: 'Não foi possível gerar a sugestão do termo com IA no momento.' },
       { status: 500 },
     )
   }

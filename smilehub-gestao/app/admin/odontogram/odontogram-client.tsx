@@ -559,7 +559,7 @@ function ResponsibilityTermSection({
           disabled={aiLoading || !selectedPatientId}
           className='inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300'
         >
-          {aiLoading ? 'Gerando sugestão...' : 'Sugerir termo com IA'}
+          IA
         </button>
       </div>
 
@@ -612,7 +612,7 @@ function ResponsibilityTermSection({
         </label>
         <label className='space-y-1 sm:col-span-2 xl:col-span-3'>
           <span>Texto do termo gerado/revisado</span>
-          <textarea rows={7} value={term.termText} onChange={event => onChange('termText', event.target.value)} placeholder='Clique em “Sugerir termo com IA” ou escreva o texto manualmente. O conteúdo ficará editável antes da impressão e salvamento.' aria-label='Texto do termo de responsabilidade ou autorização' />
+          <textarea rows={7} value={term.termText} onChange={event => onChange('termText', event.target.value)} placeholder='Clique em “IA” ou escreva o texto manualmente. O conteúdo ficará editável antes da impressão e salvamento.' aria-label='Texto do termo de responsabilidade ou autorização' />
         </label>
       </div>
 
@@ -967,7 +967,7 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
     }
 
     setAiLoading(true)
-    setAiFeedback({ type: 'info', message: 'Consultando a DeepSeek com os dados mínimos do odontograma...' })
+    setAiFeedback({ type: 'info', message: 'Consultando a IA com os dados mínimos do odontograma...' })
 
     try {
       const response = await fetch('/api/admin/odontogram/ai-term', {

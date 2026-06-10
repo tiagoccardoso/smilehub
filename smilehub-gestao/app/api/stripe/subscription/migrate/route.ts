@@ -8,7 +8,9 @@ export async function POST() {
     if (!context.clinic) return Response.json({ message: 'Clínica não vinculada ao usuário.' }, { status: 404 })
     const subscriptionId = context.subscription?.stripe_subscription_id
     if (!subscriptionId) return Response.json({ message: 'Nenhuma assinatura Stripe encontrada para migração.' }, { status: 400 })
+    if (context.subscription?.status !== 'active') return Response.json({ message: 'A migração está disponível apenas para assinatura ativa.' }, { status: 400 })
     if (context.subscription?.plan_code === 'anual') return Response.json({ message: 'A clínica já está no plano anual.' })
+    if (context.subscription?.plan_code !== 'mensal') return Response.json({ message: 'A migração automática está disponível apenas do plano mensal para o anual.' }, { status: 400 })
 
     const annualPriceId = getPriceIdForPlan('anual')
     if (!annualPriceId) return Response.json({ message: 'Configure STRIPE_PRICE_ID_ANNUAL para migrar o plano.' }, { status: 500 })

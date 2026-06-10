@@ -52,6 +52,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
 
       <SubscriptionActions
         currentPlan={subscription?.plan_code || null}
+        currentStatus={subscription?.status || null}
         hasStripeSubscription={Boolean(subscription?.stripe_subscription_id)}
         trialAvailable={trialAvailable}
       />

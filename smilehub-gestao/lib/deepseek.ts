@@ -1,6 +1,3 @@
-import { sql } from '@/lib/neon'
-import { decryptSecret } from '@/lib/secureCrypto'
-
 export type DeepSeekTermEntry = {
   tooth_code?: string
   procedure?: string
@@ -31,6 +28,7 @@ export type DeepSeekErrorCode =
   | 'empty_response'
   | 'provider_error'
   | 'configuration_error'
+  | 'out_of_scope'
 
 export class DeepSeekServiceError extends Error {
   code: DeepSeekErrorCode
@@ -44,9 +42,29 @@ export class DeepSeekServiceError extends Error {
   }
 }
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'
-const DEFAULT_MODEL = 'deepseek-v4-flash'
-const allowedModels = new Set(['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat'])
+type ChatMessage = {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+type AiProvider = {
+  name: 'DeepSeek' | 'OpenAI'
+  apiKey?: string
+  apiUrl: string
+  model: string
+}
+
+const DEFAULT_DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat'
+const DEFAULT_OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini'
+const SYSTEM_HELP_SCOPE_KEYWORDS = [
+  'sistema', 'smilehub', 'agenda', 'agendamento', 'paciente', 'pacientes', 'odontograma', 'dente', 'dentes',
+  'procedimento', 'procedimentos', 'prontuario', 'prontuário', 'financeiro', 'orçamento', 'orcamento', 'relatório',
+  'relatorio', 'nfs', 'nfse', 'nota fiscal', 'assinatura', 'plano', 'stripe', 'configuração', 'configuracao',
+  'usuário', 'usuario', 'permissão', 'permissao', 'profissional', 'clinica', 'clínica', 'termo', 'responsabilidade',
+  'autorização', 'autorizacao', 'ajuda', 'treinamento', 'como usar', 'cadastro', 'alerta', 'dashboard', 'menu',
+]
 
 function cleanText(value: unknown, max = 700) {
   return String(value ?? '')
@@ -56,52 +74,30 @@ function cleanText(value: unknown, max = 700) {
     .slice(0, max)
 }
 
-function safeModel(value: unknown) {
-  const model = cleanText(value, 80)
-  return allowedModels.has(model) ? model : DEFAULT_MODEL
+function env(name: string) {
+  const value = process.env[name]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-async function readConfiguredToken(clinicId: string) {
-  let rows: any[] = []
-  try {
-    rows = (await sql`
-      select encrypted_api_key, model, status
-        from clinic_ai_settings
-       where clinic_id = ${clinicId}::uuid
-       limit 1
-    `) as any[]
-  } catch (error) {
-    throw new DeepSeekServiceError(
-      'configuration_error',
-      'A configuração da IA ainda não está disponível. Execute a migration de IA DeepSeek.',
-      500,
-    )
-  }
-
-  const settings = rows[0]
-  if (!settings?.encrypted_api_key || settings.status !== 'configured') {
-    throw new DeepSeekServiceError(
-      'missing_token',
-      'Configure o token da DeepSeek em Configurações antes de usar a IA.',
-      400,
-    )
-  }
-
-  try {
-    return {
-      token: decryptSecret(settings.encrypted_api_key),
-      model: safeModel(settings.model),
-    }
-  } catch {
-    throw new DeepSeekServiceError(
-      'configuration_error',
-      'Não foi possível descriptografar o token da DeepSeek. Salve o token novamente nas Configurações.',
-      500,
-    )
+function deepSeekProvider(): AiProvider {
+  return {
+    name: 'DeepSeek',
+    apiKey: env('DEEPSEEK_API_KEY'),
+    apiUrl: env('DEEPSEEK_API_URL') || DEFAULT_DEEPSEEK_API_URL,
+    model: env('DEEPSEEK_MODEL') || DEFAULT_DEEPSEEK_MODEL,
   }
 }
 
-function buildTermPrompt(context: DeepSeekTermContext) {
+function openAiProvider(): AiProvider {
+  return {
+    name: 'OpenAI',
+    apiKey: env('OPENAI_API_KEY'),
+    apiUrl: env('OPENAI_API_URL') || DEFAULT_OPENAI_API_URL,
+    model: env('OPENAI_MODEL') || DEFAULT_OPENAI_MODEL,
+  }
+}
+
+function buildTermPrompt(context: DeepSeekTermContext): ChatMessage[] {
   const entries = context.entries.slice(0, 40).map((entry) => ({
     dente: cleanText(entry.tooth_code, 10),
     procedimento: cleanText(entry.procedure, 180),
@@ -149,6 +145,44 @@ function buildTermPrompt(context: DeepSeekTermContext) {
   ]
 }
 
+export const SMILEHUB_TRAINING_CONTENT = `
+SmileHub é um sistema de gestão clínica odontológica. Use estas orientações como base exclusiva para responder dúvidas do usuário sobre o próprio sistema:
+
+1. Dashboard: mostra visão geral da rotina da clínica, indicadores e atalhos principais.
+2. Agenda: permite acompanhar agendamentos, criar atendimentos, editar horários e controlar comparecimento/cancelamentos.
+3. Pacientes: centraliza cadastro, dados de contato, histórico e informações usadas nos atendimentos.
+4. Profissionais: cadastra dentistas e equipe, permitindo vínculo com agendas, procedimentos e atendimentos.
+5. Procedimentos: mantém a lista de serviços/procedimentos disponíveis para agenda, orçamento e odontograma.
+6. Odontograma: permite selecionar paciente, alternar entre odontograma adulto e infantil, clicar no dente, registrar procedimento, status, condição, data prevista e observações. Também permite imprimir relatório, gerar termo com IA, revisar texto, coletar assinatura digital, salvar histórico, reemitir, imprimir, atualizar ou excluir termos.
+7. Orçamentos e itens do orçamento: permitem montar propostas de tratamento por paciente, com itens, quantidades e valores.
+8. Financeiro: acompanha cobranças, recebimentos, status financeiro e, quando configurado, integra emissão fiscal/NFS-e.
+9. Relatórios: consolida indicadores de pacientes, agenda, financeiro, procedimentos, profissionais e tratamentos.
+10. Configurações: administra dados da clínica, conteúdo do site público, certificado NFS-e e perfil do usuário. A configuração da IA não é feita por esta tela; ela usa variáveis de ambiente no servidor.
+11. Assinaturas: mostra status do plano, fim do teste, próxima cobrança, opções de plano mensal/anual, cancelamento, portal Stripe e migração do mensal para o anual.
+12. Alertas: o sino no cabeçalho mostra pendências importantes como assinatura, configurações, agendamentos e pontos que precisam de atenção.
+13. Ajuda: o ícone de ponto de interrogação abre treinamento resumido e chat de dúvidas limitado ao funcionamento do SmileHub.
+
+Regras de resposta do chat de ajuda:
+- Responda apenas sobre uso, telas, fluxos e funcionalidades do SmileHub.
+- Não responda perguntas clínicas, jurídicas, financeiras pessoais, programação genérica ou assuntos fora do sistema.
+- Quando faltar contexto, oriente o usuário a informar a tela ou ação que está tentando executar.
+- Seja direto, em português do Brasil, com passos práticos.
+`.trim()
+
+function buildHelpPrompt(question: string): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content:
+        'Você é o chat de ajuda interno do SmileHub. Responda somente dúvidas sobre o funcionamento do sistema SmileHub usando a base de treinamento fornecida. Se a pergunta estiver fora do escopo do sistema, recuse educadamente e explique que este chat é exclusivo para dúvidas sobre o SmileHub. Não invente funcionalidades.',
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({ treinamento: SMILEHUB_TRAINING_CONTENT, pergunta: cleanText(question, 1200) }),
+    },
+  ]
+}
+
 function extractContent(payload: any) {
   const content = payload?.choices?.[0]?.message?.content
   if (typeof content === 'string') return content.trim()
@@ -161,25 +195,30 @@ function extractContent(payload: any) {
   return ''
 }
 
-export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTermContext) {
-  const { token, model } = await readConfiguredToken(context.clinicId)
+async function callOpenAiCompatibleProvider(provider: AiProvider, messages: ChatMessage[], maxTokens = 900) {
+  if (!provider.apiKey) {
+    throw new DeepSeekServiceError(
+      'missing_token',
+      `${provider.name} não configurado no servidor.`,
+      500,
+    )
+  }
+
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25000)
 
   try {
-    const response = await fetch(DEEPSEEK_API_URL, {
+    const response = await fetch(provider.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${provider.apiKey}`,
       },
       body: JSON.stringify({
-        model,
-        messages: buildTermPrompt(context),
+        model: provider.model,
+        messages,
         stream: false,
-        temperature: 0.3,
-        max_tokens: 900,
-        thinking: { type: 'disabled' },
+        max_tokens: maxTokens,
       }),
       signal: controller.signal,
     })
@@ -187,7 +226,7 @@ export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTe
     if (response.status === 401 || response.status === 403) {
       throw new DeepSeekServiceError(
         'invalid_token',
-        'Token da DeepSeek inválido ou sem permissão. Revise o token nas Configurações.',
+        `${provider.name} não autorizou a requisição. Revise a configuração server-side.`,
         401,
       )
     }
@@ -195,7 +234,7 @@ export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTe
     if (!response.ok) {
       throw new DeepSeekServiceError(
         'provider_error',
-        'A DeepSeek não respondeu como esperado. Tente novamente em instantes.',
+        `${provider.name} não respondeu como esperado.`,
         502,
       )
     }
@@ -205,7 +244,7 @@ export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTe
     if (!text) {
       throw new DeepSeekServiceError(
         'empty_response',
-        'A IA retornou uma resposta vazia. Tente novamente com mais detalhes do odontograma.',
+        `${provider.name} retornou uma resposta vazia.`,
         502,
       )
     }
@@ -216,16 +255,77 @@ export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTe
     if (error?.name === 'AbortError') {
       throw new DeepSeekServiceError(
         'timeout',
-        'A DeepSeek demorou para responder. Tente novamente em instantes.',
+        `${provider.name} demorou para responder.`,
         504,
       )
     }
     throw new DeepSeekServiceError(
       'provider_error',
-      'Não foi possível consultar a DeepSeek agora. Verifique sua conexão e tente novamente.',
+      `${provider.name} não pôde ser consultado no momento.`,
       502,
     )
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function generateWithFallback(messages: ChatMessage[], maxTokens = 900) {
+  const primary = deepSeekProvider()
+  const fallback = openAiProvider()
+  let primaryError: DeepSeekServiceError | null = null
+
+  try {
+    return await callOpenAiCompatibleProvider(primary, messages, maxTokens)
+  } catch (error: any) {
+    primaryError = error instanceof DeepSeekServiceError
+      ? error
+      : new DeepSeekServiceError('provider_error', 'A IA principal não pôde ser consultada.', 502)
+  }
+
+  if (fallback.apiKey) {
+    try {
+      return await callOpenAiCompatibleProvider(fallback, messages, maxTokens)
+    } catch (fallbackError: any) {
+      if (fallbackError instanceof DeepSeekServiceError && primaryError?.code === 'missing_token') {
+        throw fallbackError
+      }
+    }
+  }
+
+  if (primaryError?.code === 'missing_token' && !fallback.apiKey) {
+    throw new DeepSeekServiceError(
+      'missing_token',
+      'IA não configurada no servidor. Configure DEEPSEEK_API_KEY e, opcionalmente, OPENAI_API_KEY como fallback.',
+      500,
+    )
+  }
+
+  throw new DeepSeekServiceError(
+    primaryError?.code || 'provider_error',
+    'Não foi possível consultar a IA no momento. Tente novamente em instantes.',
+    primaryError?.status || 502,
+  )
+}
+
+export async function generateResponsibilityTermWithDeepSeek(context: DeepSeekTermContext) {
+  return generateWithFallback(buildTermPrompt(context), 900)
+}
+
+export function isSmileHubHelpQuestion(question: string) {
+  const normalized = cleanText(question, 1200).toLowerCase()
+  if (!normalized) return false
+  return SYSTEM_HELP_SCOPE_KEYWORDS.some((keyword) => normalized.includes(keyword))
+}
+
+export async function generateSmileHubHelpAnswer(question: string) {
+  const safeQuestion = cleanText(question, 1200)
+  if (!isSmileHubHelpQuestion(safeQuestion)) {
+    throw new DeepSeekServiceError(
+      'out_of_scope',
+      'Este chat é exclusivo para dúvidas sobre o funcionamento do SmileHub. Pergunte sobre telas, cadastros, odontograma, agenda, financeiro, assinaturas ou configurações do sistema.',
+      400,
+    )
+  }
+
+  return generateWithFallback(buildHelpPrompt(safeQuestion), 700)
 }
