@@ -943,16 +943,19 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
   }, [selectedTooth, selectedPatientId])
 
   function changePatient(patientId: string) {
+    const normalizedPatientId = patients.some(patient => patient.id === patientId) ? patientId : ''
     setSelectedTooth(null)
     clearLoadedTerm()
-    router.push(patientId ? `/admin/odontogram?patient_id=${patientId}&tab=${activeChartId}` : `/admin/odontogram?tab=${activeChartId}`)
+    router.push(normalizedPatientId ? `/admin/odontogram?patient_id=${encodeURIComponent(normalizedPatientId)}&tab=${encodeURIComponent(activeChartId)}` : `/admin/odontogram?tab=${encodeURIComponent(activeChartId)}`)
   }
 
   function changeChart(chartId: OdontogramChartId) {
     setActiveChartId(chartId)
     setSelectedTooth(null)
     clearLoadedTerm()
-    const current = selectedPatientId ? `?patient_id=${selectedPatientId}&tab=${chartId}` : `?tab=${chartId}`
+    const current = selectedPatientId
+      ? `?patient_id=${encodeURIComponent(selectedPatientId)}&tab=${encodeURIComponent(chartId)}`
+      : `?tab=${encodeURIComponent(chartId)}`
     router.replace(`/admin/odontogram${current}`, { scroll: false })
   }
 
@@ -1157,11 +1160,11 @@ export function OdontogramClient({ patients, procedures, entries, terms, selecte
 
         <div className='rounded-2xl border border-slate-200 bg-white p-4 shadow-sm'>
           <label htmlFor='patient_id' className='font-semibold'>Paciente do odontograma</label>
-          <select id='patient_id' value={selectedPatientId} onChange={event => changePatient(event.target.value)} className='mt-2' aria-label='Selecionar paciente do odontograma'>
-            <option value=''>Selecione um paciente para habilitar o mapa dental</option>
+          <select id='patient_id' value={selectedPatientId} onChange={event => changePatient(event.target.value)} className='mt-2' aria-label='Selecionar paciente do odontograma' disabled={!patients.length}>
+            <option value=''>{patients.length ? 'Selecione um paciente para habilitar o mapa dental' : 'Nenhum paciente ativo encontrado'}</option>
             {patients.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}
           </select>
-          {!selectedPatientId ? <p className='mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800'>Escolha um paciente antes de registrar procedimentos em dentes, salvar termos ou imprimir relatórios.</p> : null}
+          {!selectedPatientId ? <p className='mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800'>{patients.length ? 'Escolha um paciente antes de registrar procedimentos em dentes, salvar termos ou imprimir relatórios.' : 'Cadastre ou reative um paciente na tela Pacientes para iniciar o odontograma.'}</p> : null}
         </div>
 
         <PrintActions chart={activeChart} disabled={!selectedPatientId} onPrintOdontogram={() => handlePrint('odontogram')} onPrintTerm={() => handlePrint('term')} />

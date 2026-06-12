@@ -6,10 +6,22 @@ import { OdontogramClient } from './odontogram-client'
 import { requireClinicAccess } from '@/lib/clinic'
 import { ODONTOGRAM_CHARTS, ODONTOGRAM_STATUS, TOOTH_CODES, type OdontogramChartId, type OdontogramEntry, type OdontogramTerm, type PatientOption, type ProcedureOption } from './odontogram-data'
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const toothCodeSet = new Set<string>(TOOTH_CODES)
 const chartIdSet = new Set<string>(ODONTOGRAM_CHARTS.map(chart => chart.id))
 const statusSet = new Set<string>(ODONTOGRAM_STATUS.map(status => status.value))
+
+type OdontogramSearchParams = Record<string, string | string[] | undefined>
+
+function firstSearchParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? ''
+  return value ?? ''
+}
+
+function normalizeUuid(value: unknown) {
+  const normalized = String(value || '').trim()
+  return uuidPattern.test(normalized) ? normalized : ''
+}
 
 function chartToothCodes(chartType: string) {
   return ODONTOGRAM_CHARTS.find(chart => chart.id === chartType)?.teeth.map(tooth => tooth.number) ?? ODONTOGRAM_CHARTS[0].teeth.map(tooth => tooth.number)
@@ -39,6 +51,7 @@ type OdontogramLoadResult = {
   procedures: ProcedureOption[]
   entries: OdontogramEntry[]
   terms: OdontogramTerm[]
+  selectedPatientId: string
   warnings: string[]
 }
 
@@ -69,48 +82,75 @@ async function safeLoad<T>(scope: string, fallback: T, warning: string, loader: 
   }
 }
 
-async function loadOdontogramData(clinicId: string, selectedPatientId: string): Promise<OdontogramLoadResult> {
-  const [entriesResult, patientsResult, proceduresResult, termsResult] = await Promise.all([
+async function loadOdontogramData(clinicId: string, requestedPatientId: string): Promise<OdontogramLoadResult> {
+  const normalizedPatientId = normalizeUuid(requestedPatientId)
+
+  const patientsResult = await safeLoad<PatientOption[]>(
+    'load.patients',
+    [],
+    'Não foi possível carregar a lista de pacientes. Recarregue a página após conferir a conexão com o banco.',
+    async () => {
+      if (normalizedPatientId) {
+        return (await sql`
+          select id, full_name, cpf, birth_date::text as birth_date, phone, email, address, guardian_name
+            from patients
+           where clinic_id = ${clinicId}::uuid
+             and (status = 'active' or id = ${normalizedPatientId}::uuid)
+           order by full_name
+        `) as PatientOption[]
+      }
+
+      return (await sql`
+        select id, full_name, cpf, birth_date::text as birth_date, phone, email, address, guardian_name
+          from patients
+         where clinic_id = ${clinicId}::uuid and status = 'active'
+         order by full_name
+      `) as PatientOption[]
+    },
+  )
+
+  const patientExists = normalizedPatientId
+    ? patientsResult.data.some(patient => patient.id === normalizedPatientId)
+    : false
+  const selectedPatientId = patientExists ? normalizedPatientId : ''
+  const patientWarning = normalizedPatientId && !patientExists
+    ? 'O paciente informado não foi encontrado para este consultório. Selecione um paciente ativo na lista para carregar o odontograma.'
+    : null
+
+  const [entriesResult, proceduresResult, termsResult] = await Promise.all([
     safeLoad<OdontogramEntry[]>(
       'load.entries',
       [],
       'Os procedimentos do odontograma não puderam ser carregados. A tela foi aberta sem registros para evitar a quebra da página.',
-      async () => (await sql`
-        select
-          o.id,
-          o.patient_id,
-          p.full_name as patient_name,
-          o.tooth_code,
-          o.condition,
-          o.procedure_id,
-          pr.name as procedure_name,
-          o.planned_procedure,
-          o.performed_procedure,
-          o.notes,
-          coalesce(o.status, 'planned') as status,
-          o.scheduled_date,
-          coalesce(u.name, u.email) as created_by_name,
-          o.created_at,
-          o.updated_at
-        from odontogram_entries o
-        join patients p on p.id = o.patient_id and p.clinic_id = o.clinic_id
-        left join procedures pr on pr.id = o.procedure_id and pr.clinic_id = o.clinic_id
-        left join public."user" u on u.id = o.created_by
-        where o.clinic_id = ${clinicId}::uuid and (${selectedPatientId || null}::uuid is null or o.patient_id = ${selectedPatientId || null}::uuid)
-        order by o.updated_at desc, o.created_at desc
-        limit 1000
-      `) as OdontogramEntry[],
-    ),
-    safeLoad<PatientOption[]>(
-      'load.patients',
-      [],
-      'Não foi possível carregar a lista de pacientes. Recarregue a página após conferir a conexão com o banco.',
-      async () => (await sql`
-        select id, full_name, cpf, birth_date, phone, email, address, guardian_name
-          from patients
-         where clinic_id = ${clinicId}::uuid and status = 'active'
-         order by full_name
-      `) as PatientOption[],
+      async () => {
+        if (!selectedPatientId) return []
+
+        return (await sql`
+          select
+            o.id,
+            o.patient_id,
+            p.full_name as patient_name,
+            o.tooth_code,
+            o.condition,
+            o.procedure_id,
+            pr.name as procedure_name,
+            o.planned_procedure,
+            o.performed_procedure,
+            o.notes,
+            coalesce(o.status, 'planned') as status,
+            o.scheduled_date::text as scheduled_date,
+            coalesce(u.name, u.email) as created_by_name,
+            o.created_at::text as created_at,
+            o.updated_at::text as updated_at
+          from odontogram_entries o
+          join patients p on p.id = o.patient_id and p.clinic_id = o.clinic_id
+          left join procedures pr on pr.id = o.procedure_id and pr.clinic_id = o.clinic_id
+          left join public."user" u on u.id = o.created_by
+          where o.clinic_id = ${clinicId}::uuid and o.patient_id = ${selectedPatientId}::uuid
+          order by o.updated_at desc, o.created_at desc
+          limit 1000
+        `) as OdontogramEntry[]
+      },
     ),
     safeLoad<ProcedureOption[]>(
       'load.procedures',
@@ -127,39 +167,43 @@ async function loadOdontogramData(clinicId: string, selectedPatientId: string): 
       'load.terms',
       [],
       'O histórico de termos do odontograma não pôde ser carregado. Execute a migration de compatibilidade do odontograma caso o banco ainda não tenha a tabela de termos.',
-      async () => (await sql`
-        select
-          t.id,
-          t.patient_id,
-          p.full_name as patient_name,
-          t.chart_type,
-          t.child_name,
-          t.birth_or_age,
-          t.guardian_name,
-          t.guardian_document,
-          t.guardian_phone,
-          t.relationship,
-          t.authorization_date,
-          t.professional_name,
-          t.authorized_procedures,
-          t.term_text,
-          t.related_teeth,
-          t.signature_data_url,
-          coalesce(t.status, 'draft') as status,
-          coalesce(t.version, 1) as version,
-          t.parent_term_id,
-          coalesce(created_user.name, created_user.email) as created_by_name,
-          coalesce(updated_user.name, updated_user.email) as updated_by_name,
-          t.created_at,
-          t.updated_at
-        from odontogram_terms t
-        join patients p on p.id = t.patient_id and p.clinic_id = t.clinic_id
-        left join public."user" created_user on created_user.id = t.created_by
-        left join public."user" updated_user on updated_user.id = t.updated_by
-        where t.clinic_id = ${clinicId}::uuid and (${selectedPatientId || null}::uuid is null or t.patient_id = ${selectedPatientId || null}::uuid)
-        order by t.updated_at desc, t.created_at desc
-        limit 100
-      `) as OdontogramTerm[],
+      async () => {
+        if (!selectedPatientId) return []
+
+        return (await sql`
+          select
+            t.id,
+            t.patient_id,
+            p.full_name as patient_name,
+            t.chart_type,
+            t.child_name,
+            t.birth_or_age,
+            t.guardian_name,
+            t.guardian_document,
+            t.guardian_phone,
+            t.relationship,
+            t.authorization_date::text as authorization_date,
+            t.professional_name,
+            t.authorized_procedures,
+            t.term_text,
+            t.related_teeth,
+            t.signature_data_url,
+            coalesce(t.status, 'draft') as status,
+            coalesce(t.version, 1) as version,
+            t.parent_term_id,
+            coalesce(created_user.name, created_user.email) as created_by_name,
+            coalesce(updated_user.name, updated_user.email) as updated_by_name,
+            t.created_at::text as created_at,
+            t.updated_at::text as updated_at
+          from odontogram_terms t
+          join patients p on p.id = t.patient_id and p.clinic_id = t.clinic_id
+          left join public."user" created_user on created_user.id = t.created_by
+          left join public."user" updated_user on updated_user.id = t.updated_by
+          where t.clinic_id = ${clinicId}::uuid and t.patient_id = ${selectedPatientId}::uuid
+          order by t.updated_at desc, t.created_at desc
+          limit 100
+        `) as OdontogramTerm[]
+      },
     ),
   ])
 
@@ -168,7 +212,8 @@ async function loadOdontogramData(clinicId: string, selectedPatientId: string): 
     patients: patientsResult.data,
     procedures: proceduresResult.data,
     terms: termsResult.data,
-    warnings: [entriesResult.warning, patientsResult.warning, proceduresResult.warning, termsResult.warning].filter(Boolean) as string[],
+    selectedPatientId,
+    warnings: [patientsResult.warning, patientWarning, entriesResult.warning, proceduresResult.warning, termsResult.warning].filter(Boolean) as string[],
   }
 }
 
@@ -564,15 +609,18 @@ async function deleteResponsibilityTerm(formData: FormData) {
   redirect(target)
 }
 
-export default async function Page({ searchParams }: { searchParams?: Promise<Record<string, string>> }) {
+export default async function Page({ searchParams }: { searchParams?: Promise<OdontogramSearchParams> }) {
   const { clinic } = await assertOdontogramAccess()
   const params = (await searchParams) ?? {}
-  const selectedPatientId = uuidPattern.test(params.patient_id || '') ? params.patient_id : ''
-  const initialTab = (chartIdSet.has(params.tab || '') ? params.tab : 'adult') as OdontogramChartId
-  const initialTermId = uuidPattern.test(params.term_id || '') ? params.term_id : ''
+  const requestedPatientId = normalizeUuid(firstSearchParam(params.patient_id))
+  const requestedTab = firstSearchParam(params.tab)
+  const requestedTermId = normalizeUuid(firstSearchParam(params.term_id))
+  const initialTab = (chartIdSet.has(requestedTab) ? requestedTab : 'adult') as OdontogramChartId
+  const initialTermId = requestedTermId
 
-  const { entries, patients, procedures, terms, warnings } = await loadOdontogramData(clinic.id, selectedPatientId)
-  const feedbackError = [params.error, warnings.length ? `A tela abriu em modo seguro. ${warnings.join(' ')}` : null]
+  const { entries, patients, procedures, terms, selectedPatientId, warnings } = await loadOdontogramData(clinic.id, requestedPatientId)
+  const feedbackOk = firstSearchParam(params.ok)
+  const feedbackError = [firstSearchParam(params.error), warnings.length ? `A tela abriu em modo seguro. ${warnings.join(' ')}` : null]
     .filter(Boolean)
     .join(' ')
 
@@ -585,7 +633,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           Selecione um paciente, clique diretamente no dente desejado e registre o procedimento planejado. Dentes com registros aparecem destacados no mapa.
         </p>
       </div>
-      <FormFeedback ok={params.ok} error={feedbackError || undefined} />
+      <FormFeedback ok={feedbackOk} error={feedbackError || undefined} />
       <OdontogramClient
         patients={patients}
         procedures={procedures}

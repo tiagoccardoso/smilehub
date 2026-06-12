@@ -25,9 +25,9 @@ type PatientRow = {
 }
 
 const fieldShellClass =
-  'group flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 shadow-sm transition focus-within:border-teal-300 focus-within:bg-white focus-within:shadow-[0_14px_30px_rgba(15,23,42,0.08)] sm:p-4'
+  'group flex min-w-0 flex-col gap-2.5 rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm transition focus-within:-translate-y-0.5 focus-within:border-teal-300 focus-within:bg-white focus-within:shadow-[0_18px_36px_rgba(15,23,42,0.10)] sm:p-5'
 const fieldTitleClass = 'flex items-center gap-1 text-[0.78rem] font-black uppercase tracking-[0.08em] text-slate-600'
-const sectionClass = 'rounded-[1.45rem] border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-5'
+const sectionClass = 'rounded-[1.75rem] border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-6'
 const sectionTitleClass = 'font-[Manrope] text-base font-extrabold tracking-[-0.02em] text-slate-950'
 const sectionTextClass = 'mt-1 text-sm leading-6 text-slate-500'
 
@@ -141,7 +141,7 @@ function PatientFormSection({
         <h2 className={sectionTitleClass}>{title}</h2>
         <p className={sectionTextClass}>{description}</p>
       </div>
-      <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>{children}</div>
+      <div className='grid gap-4 md:grid-cols-2 2xl:grid-cols-4'>{children}</div>
     </div>
   )
 }
@@ -158,7 +158,7 @@ function PatientFormFields({ patient, formIdPrefix }: { patient?: PatientRow; fo
       <PatientFormSection
         title='Identificação do paciente'
         description='Dados usados para localizar o cadastro e diferenciar pacientes com nomes parecidos.'>
-        <PatientField label='Nome completo' required className='sm:col-span-2'>
+        <PatientField label='Nome completo' required className='md:col-span-2'>
           <input name='full_name' placeholder='Ex.: Maria Aparecida da Silva' defaultValue={patient?.full_name ?? ''} required />
         </PatientField>
         <PatientField label='Telefone' required>
@@ -173,7 +173,7 @@ function PatientFormFields({ patient, formIdPrefix }: { patient?: PatientRow; fo
         title='Documentos e contato'
         description='Informações opcionais para comunicação, emissão de documentos e conferência do prontuário.'>
         <CpfInput id={`${formIdPrefix}-cpf`} defaultValue={patient?.cpf || ''} className={fieldShellClass} labelClassName={fieldTitleClass} />
-        <PatientField label='E-mail' className='sm:col-span-2 xl:col-span-1'>
+        <PatientField label='E-mail' className='md:col-span-2 2xl:col-span-1'>
           <input name='email' type='email' placeholder='paciente@email.com' defaultValue={patient?.email ?? ''} />
         </PatientField>
         <PatientField label='Responsável'>
@@ -189,10 +189,10 @@ function PatientFormFields({ patient, formIdPrefix }: { patient?: PatientRow; fo
       <PatientFormSection
         title='Endereço e observações'
         description='Use este espaço para registrar informações adicionais importantes para o atendimento.'>
-        <PatientField label='Endereço' className='sm:col-span-2 xl:col-span-4'>
+        <PatientField label='Endereço' className='md:col-span-2 2xl:col-span-4'>
           <input name='address' placeholder='Rua, número, bairro, cidade e complemento' defaultValue={patient?.address ?? ''} />
         </PatientField>
-        <PatientField label='Observações' className='sm:col-span-2 xl:col-span-4'>
+        <PatientField label='Observações' className='md:col-span-2 2xl:col-span-4'>
           <textarea name='notes' placeholder='Alergias, preferências de contato, observações administrativas ou orientações internas' defaultValue={patient?.notes ?? ''} />
         </PatientField>
       </PatientFormSection>
@@ -205,7 +205,7 @@ function PatientForm({ patient }: { patient?: PatientRow }) {
   const formIdPrefix = isEditing ? `edit-patient-${patient?.id}` : 'new-patient'
 
   return (
-    <form action={savePatient} className='space-y-5 rounded-[1.75rem] border bg-white p-4 sm:p-5 lg:p-6'>
+    <form action={savePatient} className='space-y-6 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm sm:p-6 lg:p-7'>
       {patient ? <input type='hidden' name='id' value={patient.id} /> : null}
       <PatientFormFields patient={patient} formIdPrefix={formIdPrefix} />
       <div className='flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between'>

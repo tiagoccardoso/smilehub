@@ -46,7 +46,7 @@ export function CpfInput({
         required={required}
       />
       <span id={helpId} className={`block text-xs leading-5 ${invalid || incomplete ? 'text-red-700' : 'text-slate-500'}`}>
-        {invalid ? 'CPF inválido. Verifique os dígitos informados.' : incomplete ? 'Digite os 11 números do CPF.' : 'O CPF será salvo somente com números.'}
+        {invalid ? 'CPF inválido. Verifique os dígitos informados.' : incomplete ? 'Digite os 11 números do CPF.' : 'CPF opcional para identificação e documentos da clínica.'}
       </span>
     </label>
   )
