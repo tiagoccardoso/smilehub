@@ -25,6 +25,7 @@ export function CpfInput({
   const initialValue = useMemo(() => formatCpf(defaultValue), [defaultValue])
   const [value, setValue] = useState(initialValue)
   const digits = onlyCpfDigits(value)
+  const emptyRequired = required && digits.length === 0
   const invalid = digits.length > 0 && digits.length === 11 && !isValidCpf(digits)
   const incomplete = digits.length > 0 && digits.length < 11
   const inputId = id || `${name}-input`
@@ -41,12 +42,18 @@ export function CpfInput({
         placeholder='000.000.000-00'
         value={value}
         onChange={event => setValue(formatCpf(event.target.value))}
-        aria-invalid={invalid || incomplete || undefined}
+        aria-invalid={emptyRequired || invalid || incomplete || undefined}
         aria-describedby={helpId}
         required={required}
       />
-      <span id={helpId} className={`block text-xs leading-5 ${invalid || incomplete ? 'text-red-700' : 'text-slate-500'}`}>
-        {invalid ? 'CPF inválido. Verifique os dígitos informados.' : incomplete ? 'Digite os 11 números do CPF.' : 'CPF opcional para identificação e documentos da clínica.'}
+      <span id={helpId} className={`block text-xs leading-5 ${emptyRequired || invalid || incomplete ? 'text-red-700' : 'text-slate-500'}`}>
+        {emptyRequired
+          ? 'Informe o CPF do paciente.'
+          : invalid
+            ? 'CPF inválido. Verifique os dígitos informados.'
+            : incomplete
+              ? 'Digite os 11 números do CPF.'
+              : 'CPF informado será usado para identificação e documentos da clínica.'}
       </span>
     </label>
   )

@@ -44,7 +44,9 @@ async function savePatient(formData: FormData) {
   try {
     if (!fullName || !phone) {
       target += '?error=Informe+nome+completo+e+telefone'
-    } else if (cpf && !isValidCpf(cpf)) {
+    } else if (!cpf) {
+      target += '?error=Informe+o+CPF+do+paciente'
+    } else if (!isValidCpf(cpf)) {
       target += '?error=CPF+inv%C3%A1lido.+Confira+os+d%C3%ADgitos+informados'
     } else if (id) {
       const updated = await sql`
@@ -171,8 +173,8 @@ function PatientFormFields({ patient, formIdPrefix }: { patient?: PatientRow; fo
 
       <PatientFormSection
         title='Documentos e contato'
-        description='Informações opcionais para comunicação, emissão de documentos e conferência do prontuário.'>
-        <CpfInput id={`${formIdPrefix}-cpf`} defaultValue={patient?.cpf || ''} className={fieldShellClass} labelClassName={fieldTitleClass} />
+        description='Informe o CPF obrigatório do paciente e complemente com dados de contato para documentos e conferência do prontuário.'>
+        <CpfInput id={`${formIdPrefix}-cpf`} defaultValue={patient?.cpf || ''} required className={fieldShellClass} labelClassName={fieldTitleClass} />
         <PatientField label='E-mail' className='md:col-span-2 2xl:col-span-1'>
           <input name='email' type='email' placeholder='paciente@email.com' defaultValue={patient?.email ?? ''} />
         </PatientField>
@@ -210,7 +212,7 @@ function PatientForm({ patient }: { patient?: PatientRow }) {
       <PatientFormFields patient={patient} formIdPrefix={formIdPrefix} />
       <div className='flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between'>
         <p className='text-sm leading-6 text-slate-500'>
-          Revise os campos obrigatórios antes de salvar. CPF, e-mail e observações continuam opcionais.
+          Revise os campos obrigatórios antes de salvar. Nome completo, telefone e CPF são obrigatórios.
         </p>
         <SubmitButton label={isEditing ? 'Atualizar paciente' : 'Cadastrar paciente'} />
       </div>

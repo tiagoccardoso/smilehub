@@ -133,7 +133,7 @@ create table public.patients (
   id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references public.clinics(id) on delete cascade,
   full_name text not null,
-  cpf text,
+  cpf text not null,
   birth_date date,
   phone text not null,
   email text,
@@ -142,7 +142,8 @@ create table public.patients (
   notes text,
   status public.patient_status not null default 'active',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint patients_cpf_required_check check (btrim(cpf) <> '')
 );
 
 create table public.professionals (
