@@ -5,6 +5,7 @@ import { requireClinicAccess } from '@/lib/clinic'
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { DeleteConfirmButton } from '../_components/delete-confirm-button'
+import { AdminCheckboxField, AdminField, AdminFormHeader } from '../_components/premium-form'
 
 const optional = (value: FormDataEntryValue | null) => String(value || '').trim() || null
 const weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -78,6 +79,37 @@ async function deleteSchedule(formData: FormData) {
   revalidatePath('/admin/professionals'); redirect(target)
 }
 
+function ProfessionalForm({ professional }: { professional?: any }) {
+  const isEditing = Boolean(professional)
+  return (
+    <form action={saveProfessional} className={`admin-form-card ${isEditing ? 'mt-3' : ''}`}>
+      {isEditing ? <input type='hidden' name='id' value={professional.id} /> : null}
+      {!isEditing ? <AdminFormHeader title='Cadastrar profissional' description='Informe os dados principais do profissional e mantenha o status ativo quando ele puder atender na agenda.' /> : null}
+      <div className='admin-form-grid'>
+        <AdminField label='Nome completo' required>
+          <input name='full_name' defaultValue={professional?.full_name || ''} required placeholder='Nome do profissional' />
+        </AdminField>
+        <AdminField label='Especialidade'>
+          <input name='specialty' defaultValue={professional?.specialty || ''} placeholder='Ex.: Ortodontia' />
+        </AdminField>
+        <AdminField label='CRO'>
+          <input name='cro' defaultValue={professional?.cro || ''} placeholder='Registro profissional' />
+        </AdminField>
+        <AdminCheckboxField className='self-end'>
+          <input type='checkbox' name='is_active' defaultChecked={professional?.is_active ?? true} />
+          Ativo
+        </AdminCheckboxField>
+        <AdminField label='Observações da agenda' className='md:col-span-2'>
+          <textarea name='schedule_notes' defaultValue={professional?.schedule_notes || ''} placeholder='Preferências, restrições ou orientações internas' />
+        </AdminField>
+      </div>
+      <div className='admin-form-actions'>
+        <SubmitButton label={isEditing ? 'Atualizar profissional' : 'Cadastrar profissional'} />
+      </div>
+    </form>
+  )
+}
+
 export default async function Page({ searchParams }: { searchParams?: Promise<Record<string, string>> }) {
   const { clinic } = await requireAccess()
   const params = (await searchParams) ?? {}
@@ -86,16 +118,41 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     sql`select ps.*, p.full_name from professional_schedules ps join professionals p on p.id=ps.professional_id where ps.clinic_id = ${clinic.id}::uuid order by p.full_name, ps.weekday`,
   ])
   const professionalRows = professionals as any[]
+
   return <section className='space-y-6'>
-    <div><h1 className='text-2xl font-bold'>Profissionais</h1><p className='text-sm text-gray-600'>Cadastro de profissionais e configuração de horários de atendimento.</p></div>
+    <div><h1>Profissionais</h1><p>Cadastro de profissionais e configuração de horários de atendimento.</p></div>
     <FormFeedback ok={params.ok} error={params.error} />
-    <form action={saveProfessional} className='grid gap-3 rounded border bg-white p-4 md:grid-cols-2'>
-      <input name='full_name' required placeholder='Nome completo *' /><input name='specialty' placeholder='Especialidade' /><input name='cro' placeholder='CRO' />
-      <textarea name='schedule_notes' className='md:col-span-2' placeholder='Observações da agenda' /><label className='flex items-center gap-2'><input type='checkbox' name='is_active' defaultChecked />Ativo</label><SubmitButton label='Cadastrar profissional' />
-    </form>
+    <ProfessionalForm />
+
     <div className='grid gap-6 lg:grid-cols-2'>
-      <div className='overflow-auto rounded border'><table className='w-full min-w-[760px] text-sm'><thead className='bg-gray-50'><tr><th className='p-2 text-left'>Nome</th><th className='p-2 text-left'>Especialidade</th><th className='p-2 text-left'>CRO</th><th className='p-2 text-left'>Ações</th></tr></thead><tbody>{professionalRows.map(row => <tr key={row.id} className='border-t align-top'><td className='p-2 font-medium'>{row.full_name}</td><td className='p-2'>{row.specialty || '-'}</td><td className='p-2'>{row.cro || '-'}</td><td className='space-y-2 p-2'><details className='rounded border p-2'><summary className='cursor-pointer font-semibold text-blue-700'>Editar</summary><form action={saveProfessional} className='mt-3 grid gap-2'><input type='hidden' name='id' value={row.id} /><input name='full_name' defaultValue={row.full_name} required /><input name='specialty' defaultValue={row.specialty || ''} /><input name='cro' defaultValue={row.cro || ''} /><textarea name='schedule_notes' defaultValue={row.schedule_notes || ''} /><label className='flex items-center gap-2'><input type='checkbox' name='is_active' defaultChecked={row.is_active} />Ativo</label><SubmitButton label='Atualizar' /></form></details><form action={deleteProfessional}><input type='hidden' name='id' value={row.id} /><DeleteConfirmButton message={`Excluir o profissional ${row.full_name}?`} /></form></td></tr>)}</tbody></table></div>
-      <div className='space-y-4 rounded border p-4'><h2 className='font-bold'>Agenda de atendimento</h2><form action={saveSchedule} className='grid gap-3 md:grid-cols-2'><select name='professional_id' required><option value=''>Profissional *</option>{professionalRows.map(row => <option key={row.id} value={row.id}>{row.full_name}</option>)}</select><select name='weekday' required>{weekdays.map((day, index) => <option key={day} value={index}>{day}</option>)}</select><input name='start_time' type='time' required /><input name='end_time' type='time' required /><input name='break_start' type='time' /><input name='break_end' type='time' /><input name='appointment_duration_minutes' type='number' min={1} defaultValue={60} /><label className='flex items-center gap-2'><input type='checkbox' name='is_active' defaultChecked />Ativa</label><SubmitButton label='Salvar agenda' /></form><div className='space-y-2'>{(schedules as any[]).map(schedule => <div key={schedule.id} className='rounded border p-2 text-sm'><div className='font-medium'>{schedule.full_name} - {weekdays[schedule.weekday]}</div><div>{String(schedule.start_time).slice(0,5)} às {String(schedule.end_time).slice(0,5)} · {schedule.appointment_duration_minutes} min · {schedule.is_active ? 'ativa' : 'inativa'}</div><form action={deleteSchedule} className='mt-2'><input type='hidden' name='id' value={schedule.id} /><DeleteConfirmButton label='Excluir agenda' message='Excluir este horário de atendimento?' /></form></div>)}</div></div>
+      <div className='overflow-auto rounded border'>
+        <table className='w-full min-w-[760px] text-sm'>
+          <thead className='bg-gray-50'><tr><th className='p-2 text-left'>Nome</th><th className='p-2 text-left'>Especialidade</th><th className='p-2 text-left'>CRO</th><th className='p-2 text-left'>Ações</th></tr></thead>
+          <tbody>{professionalRows.map(row => <tr key={row.id} className='border-t align-top'><td className='p-2 font-medium'>{row.full_name}</td><td className='p-2'>{row.specialty || '-'}</td><td className='p-2'>{row.cro || '-'}</td><td className='space-y-2 p-2'><details className='rounded border p-2'><summary className='cursor-pointer font-semibold text-blue-700'>Editar</summary><ProfessionalForm professional={row} /></details><form action={deleteProfessional}><input type='hidden' name='id' value={row.id} /><DeleteConfirmButton message={`Excluir o profissional ${row.full_name}?`} /></form></td></tr>)}</tbody>
+        </table>
+      </div>
+
+      <div className='space-y-4 rounded border bg-white p-4'>
+        <AdminFormHeader title='Agenda de atendimento' description='Defina o dia da semana, horários de atendimento, intervalo e duração padrão da consulta.' />
+        <form action={saveSchedule} className='admin-form-card shadow-none'>
+          <div className='admin-form-grid'>
+            <AdminField label='Profissional' required>
+              <select name='professional_id' required><option value=''>Selecione</option>{professionalRows.map(row => <option key={row.id} value={row.id}>{row.full_name}</option>)}</select>
+            </AdminField>
+            <AdminField label='Dia da semana' required>
+              <select name='weekday' required>{weekdays.map((day, index) => <option key={day} value={index}>{day}</option>)}</select>
+            </AdminField>
+            <AdminField label='Início' required><input name='start_time' type='time' required /></AdminField>
+            <AdminField label='Fim' required><input name='end_time' type='time' required /></AdminField>
+            <AdminField label='Início do intervalo'><input name='break_start' type='time' /></AdminField>
+            <AdminField label='Fim do intervalo'><input name='break_end' type='time' /></AdminField>
+            <AdminField label='Duração padrão'><input name='appointment_duration_minutes' type='number' min={1} defaultValue={60} /></AdminField>
+            <AdminCheckboxField className='self-end'><input type='checkbox' name='is_active' defaultChecked />Ativa</AdminCheckboxField>
+          </div>
+          <div className='admin-form-actions'><SubmitButton label='Salvar agenda' /></div>
+        </form>
+        <div className='space-y-2'>{(schedules as any[]).map(schedule => <div key={schedule.id} className='rounded-2xl border border-slate-200 p-3 text-sm'><div className='font-medium'>{schedule.full_name} - {weekdays[schedule.weekday]}</div><div>{String(schedule.start_time).slice(0,5)} às {String(schedule.end_time).slice(0,5)} · {schedule.appointment_duration_minutes} min · {schedule.is_active ? 'ativa' : 'inativa'}</div><form action={deleteSchedule} className='mt-2'><input type='hidden' name='id' value={schedule.id} /><DeleteConfirmButton label='Excluir agenda' message='Excluir este horário de atendimento?' /></form></div>)}</div>
+      </div>
     </div>
   </section>
 }

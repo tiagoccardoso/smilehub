@@ -5,6 +5,7 @@ import { appointmentStatus, requireClinicAccess, statusLabel } from '@/lib/clini
 import { SubmitButton } from '../_components/submit-button'
 import { FormFeedback } from '../_components/form-feedback'
 import { DeleteConfirmButton } from '../_components/delete-confirm-button'
+import { AdminField, AdminFormHeader } from '../_components/premium-form'
 
 const optional = (value: FormDataEntryValue | null) => String(value || '').trim() || null
 
@@ -123,6 +124,67 @@ async function loadAgendaData(clinicId: string): Promise<AgendaPageData> {
   }
 }
 
+
+function AppointmentForm({
+  appointment,
+  patientOptions,
+  professionalOptions,
+  procedureOptions,
+  disabled = false,
+}: {
+  appointment?: any
+  patientOptions: any[]
+  professionalOptions: any[]
+  procedureOptions: any[]
+  disabled?: boolean
+}) {
+  const isEditing = Boolean(appointment)
+  return (
+    <form action={saveAppointment} className={`admin-form-card ${isEditing ? 'mt-3' : ''}`}>
+      {isEditing ? <input type='hidden' name='id' value={appointment.id} /> : null}
+      {!isEditing ? <AdminFormHeader title='Criar agendamento' description='Selecione paciente, profissional, procedimento e horários com campos claros para evitar conflitos de agenda.' /> : null}
+      <div className='admin-form-grid'>
+        <AdminField label='Paciente' required>
+          <select name='patient_id' defaultValue={appointment?.patient_id || ''} required disabled={disabled}>
+            <option value=''>Selecione o paciente</option>
+            {patientOptions.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}
+          </select>
+        </AdminField>
+        <AdminField label='Profissional'>
+          <select name='professional_id' defaultValue={appointment?.professional_id || ''} disabled={disabled}>
+            <option value=''>Selecione o profissional</option>
+            {professionalOptions.map(professional => <option key={professional.id} value={professional.id}>{professional.full_name}</option>)}
+          </select>
+        </AdminField>
+        <AdminField label='Procedimento'>
+          <select name='procedure_id' defaultValue={appointment?.procedure_id || ''} disabled={disabled}>
+            <option value=''>Selecione o procedimento</option>
+            {procedureOptions.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
+          </select>
+        </AdminField>
+        <AdminField label='Status'>
+          <select name='status' defaultValue={appointment?.status || 'scheduled'} disabled={disabled}>{appointmentStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
+        </AdminField>
+        <AdminField label='Data' required>
+          <input name='appointment_date' type='date' defaultValue={appointment?.appointment_date || ''} required disabled={disabled} />
+        </AdminField>
+        <AdminField label='Início' required>
+          <input name='start_time' type='time' defaultValue={appointment ? String(appointment.start_time).slice(0, 5) : ''} required disabled={disabled} />
+        </AdminField>
+        <AdminField label='Fim' required>
+          <input name='end_time' type='time' defaultValue={appointment ? String(appointment.end_time).slice(0, 5) : ''} required disabled={disabled} />
+        </AdminField>
+        <AdminField label='Observações' className='md:col-span-2'>
+          <textarea name='notes' defaultValue={appointment?.notes || ''} placeholder='Observações do agendamento' disabled={disabled} />
+        </AdminField>
+      </div>
+      <div className='admin-form-actions'>
+        {disabled ? <button className='btn opacity-60' type='button' disabled>Criar agendamento</button> : <SubmitButton label={isEditing ? 'Atualizar agendamento' : 'Criar agendamento'} />}
+      </div>
+    </form>
+  )
+}
+
 function getParam(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key]
   return Array.isArray(value) ? value[0] : value
@@ -148,17 +210,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
       {!loadError && patientOptions.length === 0 && (
         <p className='rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900'>Cadastre pelo menos um paciente para criar agendamentos.</p>
       )}
-      <form action={saveAppointment} className='grid gap-3 rounded border bg-white p-4 md:grid-cols-2'>
-        <select name='patient_id' required disabled={!canCreateAppointment}><option value=''>Paciente *</option>{patientOptions.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}</select>
-        <select name='professional_id' disabled={!!loadError}><option value=''>Profissional</option>{professionalOptions.map(professional => <option key={professional.id} value={professional.id}>{professional.full_name}</option>)}</select>
-        <select name='procedure_id' disabled={!!loadError}><option value=''>Procedimento</option>{procedureOptions.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}</select>
-        <select name='status' disabled={!!loadError}>{appointmentStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
-        <input name='appointment_date' type='date' required disabled={!canCreateAppointment} />
-        <input name='start_time' type='time' required disabled={!canCreateAppointment} />
-        <input name='end_time' type='time' required disabled={!canCreateAppointment} />
-        <textarea name='notes' className='md:col-span-2' placeholder='Observações' disabled={!!loadError} />
-        {canCreateAppointment ? <SubmitButton label='Criar agendamento' /> : <button className='btn opacity-60' type='button' disabled>Criar agendamento</button>}
-      </form>
+      <AppointmentForm patientOptions={patientOptions} professionalOptions={professionalOptions} procedureOptions={procedureOptions} disabled={!canCreateAppointment} />
       <div className='overflow-auto rounded border'>
         <table className='w-full min-w-[1000px] text-sm'>
           <thead className='bg-gray-50'><tr><th className='p-2 text-left'>Paciente</th><th className='p-2 text-left'>Profissional</th><th className='p-2 text-left'>Procedimento</th><th className='p-2 text-left'>Data/Hora</th><th className='p-2 text-left'>Status</th><th className='p-2 text-left'>Ações</th></tr></thead>
@@ -167,18 +219,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
               <td className='p-2 font-medium'>{row.patient_name}</td><td className='p-2'>{row.professional_name || '-'}</td><td className='p-2'>{row.procedure_name || '-'}</td><td className='p-2'>{row.appointment_date} {String(row.start_time).slice(0, 5)}-{String(row.end_time).slice(0, 5)}</td><td className='p-2'>{statusLabel(row.status)}</td>
               <td className='space-y-2 p-2'>
                 <details className='rounded border p-2'><summary className='cursor-pointer font-semibold text-blue-700'>Editar</summary>
-                  <form action={saveAppointment} className='mt-3 grid gap-2 md:grid-cols-2'>
-                    <input type='hidden' name='id' value={row.id} />
-                    <select name='patient_id' defaultValue={row.patient_id} required>{patientOptions.map(patient => <option key={patient.id} value={patient.id}>{patient.full_name}</option>)}</select>
-                    <select name='professional_id' defaultValue={row.professional_id || ''}><option value=''>Profissional</option>{professionalOptions.map(professional => <option key={professional.id} value={professional.id}>{professional.full_name}</option>)}</select>
-                    <select name='procedure_id' defaultValue={row.procedure_id || ''}><option value=''>Procedimento</option>{procedureOptions.map(procedure => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}</select>
-                    <select name='status' defaultValue={row.status}>{appointmentStatus.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select>
-                    <input name='appointment_date' type='date' defaultValue={row.appointment_date} required />
-                    <input name='start_time' type='time' defaultValue={String(row.start_time).slice(0, 5)} required />
-                    <input name='end_time' type='time' defaultValue={String(row.end_time).slice(0, 5)} required />
-                    <textarea name='notes' className='md:col-span-2' defaultValue={row.notes || ''} placeholder='Observações' />
-                    <SubmitButton label='Atualizar' />
-                  </form>
+                  <AppointmentForm appointment={row} patientOptions={patientOptions} professionalOptions={professionalOptions} procedureOptions={procedureOptions} />
                 </details>
                 <form action={deleteAppointment}><input type='hidden' name='id' value={row.id} /><DeleteConfirmButton message={`Excluir o agendamento de ${row.patient_name}?`} /></form>
               </td>

@@ -160,16 +160,20 @@ function BookingForm() {
       {professionalsStatus === 'success' && !hasProfessionals && <p className='text-center text-slate-600'>Nenhum profissional cadastrado para agendamento no momento.</p>}
       {professionalsStatus === 'success' && hasProfessionals && <p className='text-center text-green-700'>Profissionais carregados com sucesso.</p>}
       {error && <p className='text-red-600 text-center'>{error}</p>}
-      <form className='mx-auto' onSubmit={handleAppointment}>
-        <div className='grid md:grid-cols-2 gap-4 items-center'><input disabled={isLoading} type='text' placeholder='Nome' value={firstName} onChange={e => setFirstName(e.target.value)} /><input disabled={isLoading} type='text' placeholder='Sobrenome' value={lastName} onChange={e => setLastName(e.target.value)} /></div>
-        <div className='grid md:grid-cols-2 gap-4 items-center my-4'><input disabled={isLoading} type='email' placeholder='Email' value={email} onChange={e => setEmail(e.target.value)} /><input disabled={isLoading} type='text' placeholder='Telefone' value={phone} onChange={e => setPhone(e.target.value)} /></div>
-        <div className='grid md:grid-cols-3 gap-4 items-center'>
-          <select value={professionalId} onChange={e => setProfessionalId(e.target.value)} disabled={isLoading || isLoadingProfessionals || !hasProfessionals}><option value=''>{isLoadingProfessionals ? 'Carregando profissionais...' : 'Profissional'}</option>{professionals.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select>
-          <DatePicker selected={selectedDate} onChange={(d: Date | null) => setSelectedDate(d)} dateFormat='dd/MM/yyyy' minDate={new Date()} />
-          <select value={selectedTime} onChange={e => setSelectedTime(e.target.value)} disabled={isLoading || !availableTimes.length}>{availableTimes.length ? availableTimes.map(t => <option key={t} value={t}>{formatTime(t)} - {incrementTimeByOneHour(t)}</option>) : <option value=''>Sem horários disponíveis</option>}</select>
+      <form className='mx-auto grid gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6' onSubmit={handleAppointment}>
+        <div className='grid gap-4 md:grid-cols-2'>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-first-name'>Nome <input id='booking-first-name' disabled={isLoading} type='text' placeholder='Nome' value={firstName} onChange={e => setFirstName(e.target.value)} required /></label>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-last-name'>Sobrenome <input id='booking-last-name' disabled={isLoading} type='text' placeholder='Sobrenome' value={lastName} onChange={e => setLastName(e.target.value)} required /></label>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-email'>E-mail <input id='booking-email' disabled={isLoading} type='email' placeholder='Email' value={email} onChange={e => setEmail(e.target.value)} required /></label>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-phone'>Telefone <input id='booking-phone' disabled={isLoading} type='text' placeholder='Telefone' value={phone} onChange={e => setPhone(e.target.value)} required /></label>
         </div>
-        <textarea disabled={isLoading} value={message} onChange={e => setMessage(e.target.value)} className='w-full my-4' rows={5} placeholder='Mensagem (opcional)' />
-        <button type='submit' className='rounded px-6 py-3 text-center font-semibold text-white bg-blue-600 hover:bg-blue-800 disabled:opacity-60' disabled={isDisabled || isLoading}>{isLoading ? 'Enviando...' : 'Agendar consulta'}</button>
+        <div className='grid gap-4 md:grid-cols-3'>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-professional'>Profissional <select id='booking-professional' value={professionalId} onChange={e => setProfessionalId(e.target.value)} disabled={isLoading || isLoadingProfessionals || !hasProfessionals} required><option value=''>{isLoadingProfessionals ? 'Carregando profissionais...' : 'Profissional'}</option>{professionals.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></label>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-date'>Data <DatePicker id='booking-date' selected={selectedDate} onChange={(d: Date | null) => setSelectedDate(d)} dateFormat='dd/MM/yyyy' minDate={new Date()} /></label>
+          <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-time'>Horário <select id='booking-time' value={selectedTime} onChange={e => setSelectedTime(e.target.value)} disabled={isLoading || !availableTimes.length} required>{availableTimes.length ? availableTimes.map(t => <option key={t} value={t}>{formatTime(t)} - {incrementTimeByOneHour(t)}</option>) : <option value=''>Sem horários disponíveis</option>}</select></label>
+        </div>
+        <label className='grid gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-600' htmlFor='booking-message'>Mensagem <textarea id='booking-message' disabled={isLoading} value={message} onChange={e => setMessage(e.target.value)} className='w-full' rows={5} placeholder='Mensagem (opcional)' /></label>
+        <button type='submit' className='btn w-full sm:w-fit' disabled={isDisabled || isLoading}>{isLoading ? 'Enviando...' : 'Agendar consulta'}</button>
       </form>
     </>}
   </div></section>

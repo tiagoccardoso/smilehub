@@ -5,6 +5,7 @@ import { requireClinicAccess } from "@/lib/clinic";
 import { SubmitButton } from "../_components/submit-button";
 import { FormFeedback } from "../_components/form-feedback";
 import { DeleteConfirmButton } from "../_components/delete-confirm-button";
+import { AdminCheckboxField, AdminField, AdminFormHeader } from "../_components/premium-form";
 
 const parseMoney = (value: string) =>
   Number(value.replace(/\./g, "").replace(",", ".")) || 0;
@@ -119,40 +120,30 @@ export default async function Page({
         </p>
       </div>
       <FormFeedback ok={params.ok} error={params.error} />
-      <form
-        action={saveProcedure}
-        className="grid gap-3 rounded border bg-white p-4 md:grid-cols-2"
-      >
-        <label>
-          Nome <strong className="required-mark">*</strong>
-          <input name="name" required placeholder="Nome do procedimento" />
-        </label>
-        <label>
-          Valor <strong className="required-mark">*</strong>
-          <input name="amount" required placeholder="Valor ex: 120,50" />
-        </label>
-        <label>
-          Duração estimada
-          <input
-            name="estimated_minutes"
-            type="number"
-            min={1}
-            placeholder="Minutos"
-          />
-        </label>
-        <label>
-          Categoria
-          <input name="category" placeholder="Categoria" />
-        </label>
-        <label className="md:col-span-2">
-          Descrição
-          <textarea name="description" placeholder="Descrição" />
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="is_active" defaultChecked />
-          Ativo
-        </label>
-        <SubmitButton label="Cadastrar procedimento" />
+      <form action={saveProcedure} className="admin-form-card">
+        <AdminFormHeader title="Cadastrar procedimento" description="Defina nome, valor, duração estimada e categoria dos serviços usados em agenda, orçamento e prontuário." />
+        <div className="admin-form-grid">
+          <AdminField label="Nome" required>
+            <input name="name" required placeholder="Nome do procedimento" />
+          </AdminField>
+          <AdminField label="Valor" required>
+            <input name="amount" required placeholder="Valor ex: 120,50" />
+          </AdminField>
+          <AdminField label="Duração estimada">
+            <input name="estimated_minutes" type="number" min={1} placeholder="Minutos" />
+          </AdminField>
+          <AdminField label="Categoria">
+            <input name="category" placeholder="Categoria" />
+          </AdminField>
+          <AdminField label="Descrição" className="md:col-span-2">
+            <textarea name="description" placeholder="Descrição" />
+          </AdminField>
+          <AdminCheckboxField>
+            <input type="checkbox" name="is_active" defaultChecked />
+            Ativo
+          </AdminCheckboxField>
+        </div>
+        <div className="admin-form-actions"><SubmitButton label="Cadastrar procedimento" /></div>
       </form>
 
       <div className="overflow-auto rounded border">
@@ -180,7 +171,7 @@ export default async function Page({
                     </summary>
                     <form
                       action={saveProcedure}
-                      className="mt-3 grid gap-2 md:grid-cols-2"
+                      className="admin-form-card mt-3"
                     >
                       <input type="hidden" name="id" value={row.id} />
                       <label>

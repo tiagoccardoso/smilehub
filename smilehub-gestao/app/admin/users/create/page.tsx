@@ -86,7 +86,7 @@ function CreateUser() {
   return (
     <section>
       <div className='p-4 py-16 md:py-24 lg:py-32'>
-        <form className='mx-auto mb-4 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm' onSubmit={handleSubmit} aria-busy={isLoading}>
+        <form className='admin-form-card mx-auto mb-4 w-full max-w-md' onSubmit={handleSubmit} aria-busy={isLoading}>
           <h1 className='my-4 text-center text-3xl font-bold text-slate-900'>Criar novo usuário SmileHub</h1>
           <p className='mb-5 text-center text-sm text-slate-600'>Preencha os campos marcados com <span className='font-bold text-red-600'>*</span>.</p>
 
@@ -112,7 +112,7 @@ function CreateUser() {
 
           {error && <p className='my-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700'>{error}</p>}
           {success && <p className='my-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-center text-sm text-green-700'>{success}</p>}
-          <button disabled={isLoading} type='submit' className='w-full rounded px-6 py-3 text-center font-semibold text-white bg-blue-600 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-400'>
+          <button disabled={isLoading} type='submit' className='btn w-full'>
             {isLoading ? 'Salvando...' : 'Criar usuário'}
           </button>
         </form>

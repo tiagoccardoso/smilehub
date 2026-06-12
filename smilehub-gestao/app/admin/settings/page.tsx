@@ -381,7 +381,7 @@ export default async function Page({
 
       <div
         id="profile"
-        className="scroll-mt-6 rounded-xl border bg-white p-5 shadow-sm"
+        className="admin-form-card scroll-mt-6"
       >
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -401,7 +401,7 @@ export default async function Page({
       <form
         id="clinic"
         action={saveClinicSettings}
-        className="scroll-mt-6 space-y-4 rounded-xl border bg-white p-5 shadow-sm"
+        className="admin-form-card scroll-mt-6"
       >
         <div>
           <h2 className="text-xl font-bold">Configurações da Clínica</h2>
@@ -562,7 +562,7 @@ export default async function Page({
       <form
         id="nfse-certificate"
         action={saveNfseCertificate}
-        className="scroll-mt-6 space-y-4 rounded-xl border bg-white p-5 shadow-sm"
+        className="admin-form-card scroll-mt-6"
       >
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
@@ -709,7 +709,7 @@ export default async function Page({
               key={section.key}
               id={section.key}
               action={saveSettings}
-              className="scroll-mt-6 space-y-4 rounded-xl border bg-white p-5 shadow-sm"
+              className="admin-form-card scroll-mt-6"
             >
               <input type="hidden" name="section" value={section.key} />
               <div>

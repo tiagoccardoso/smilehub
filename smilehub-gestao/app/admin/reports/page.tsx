@@ -114,7 +114,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         <p className='text-sm text-gray-600'>Indicadores reais da clínica com filtros por período, profissional e status de agendamento.</p>
       </div>
 
-      <form className='grid gap-3 rounded border bg-white p-4 md:grid-cols-4'>
+      <form className='admin-form-card grid gap-3 md:grid-cols-4'>
         <label>Início<input name='start' type='date' defaultValue={startDate} /></label>
         <label>Fim<input name='end' type='date' defaultValue={endDate} /></label>
         <label>Profissional<select name='professional_id' defaultValue={professionalId}><option value=''>Todos</option>{(professionals as any[]).map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select></label>

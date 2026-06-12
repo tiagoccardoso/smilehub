@@ -8,6 +8,7 @@ import { SubmitButton } from "../_components/submit-button";
 import { FormFeedback } from "../_components/form-feedback";
 import { DeleteConfirmButton } from "../_components/delete-confirm-button";
 import { AdminIcon } from "@/app/components/admin/AdminIcon";
+import { AdminField, AdminFormHeader } from "../_components/premium-form";
 
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -28,6 +29,68 @@ function formatDateTime(value?: string | Date | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString("pt-BR");
 }
+
+function FinancialEntryForm({
+  entry,
+  patients,
+  budgets,
+}: {
+  entry?: any;
+  patients: any[];
+  budgets: any[];
+}) {
+  const isEditing = Boolean(entry);
+  return (
+    <form action={save} className={`admin-form-card ${isEditing ? "mt-3" : ""}`}>
+      {isEditing ? <input type="hidden" name="id" value={entry.id} /> : null}
+      {!isEditing ? (
+        <AdminFormHeader
+          title="Cadastrar lançamento financeiro"
+          description="Registre paciente, origem do orçamento, vencimento, valor e status do recebimento."
+        />
+      ) : null}
+      <div className="admin-form-grid">
+        <AdminField label="Paciente" required>
+          <select name="patient_id" defaultValue={entry?.patient_id || ""} required>
+            <option value="">Selecione o paciente</option>
+            {patients.map((patient) => (
+              <option key={patient.id} value={patient.id}>{patient.full_name}</option>
+            ))}
+          </select>
+        </AdminField>
+        <AdminField label="Orçamento">
+          <select name="budget_id" defaultValue={entry?.budget_id || ""}>
+            <option value="">Sem orçamento vinculado</option>
+            {budgets.map((budget) => (
+              <option key={budget.id} value={budget.id}>{budget.id.slice(0, 8)}</option>
+            ))}
+          </select>
+        </AdminField>
+        <AdminField label="Descrição" required>
+          <input name="description" defaultValue={entry?.description || ""} required placeholder="Descrição do lançamento" />
+        </AdminField>
+        <AdminField label="Forma de pagamento">
+          <input name="payment_method" defaultValue={entry?.payment_method || ""} placeholder="Pix, cartão, dinheiro..." />
+        </AdminField>
+        <AdminField label="Vencimento">
+          <input name="due_date" type="date" defaultValue={entry?.due_date || ""} />
+        </AdminField>
+        <AdminField label="Valor" required>
+          <input name="amount" defaultValue={entry ? String(entry.amount).replace(".", ",") : ""} required placeholder="Ex.: 100,00" />
+        </AdminField>
+        <AdminField label="Status">
+          <select name="status" defaultValue={entry?.status || "pending"}>
+            {financeStatus.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
+          </select>
+        </AdminField>
+      </div>
+      <div className="admin-form-actions">
+        <SubmitButton label={isEditing ? "Atualizar lançamento" : "Cadastrar lançamento"} />
+      </div>
+    </form>
+  );
+}
+
 
 async function save(formData: FormData) {
   "use server";
@@ -314,36 +377,7 @@ export default async function Page({
 
       <FormFeedback ok={params.ok} error={params.error} />
 
-      <form action={save} className="grid gap-3 md:grid-cols-2">
-        <select name="patient_id" required>
-          <option value="">Paciente *</option>
-          {patients.map((patient) => (
-            <option key={patient.id} value={patient.id}>
-              {patient.full_name}
-            </option>
-          ))}
-        </select>
-        <select name="budget_id">
-          <option value="">Orçamento</option>
-          {budgets.map((budget) => (
-            <option key={budget.id} value={budget.id}>
-              {budget.id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-        <input name="description" required placeholder="Descrição *" />
-        <input name="payment_method" placeholder="Forma de pagamento" />
-        <input name="due_date" type="date" />
-        <input name="amount" required placeholder="Valor ex: 100,00" />
-        <select name="status">
-          {financeStatus.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel(status)}
-            </option>
-          ))}
-        </select>
-        <SubmitButton label="Cadastrar lançamento" />
-      </form>
+      <FinancialEntryForm patients={patients} budgets={budgets} />
 
       <div className="overflow-auto">
         <table className="w-full min-w-[980px] text-sm">
@@ -374,52 +408,7 @@ export default async function Page({
                 <td className="space-y-2">
                   <details className="p-3">
                     <summary className="cursor-pointer">Editar</summary>
-                    <form action={save} className="mt-3 grid gap-2">
-                      <input type="hidden" name="id" value={entry.id} />
-                      <select name="patient_id" defaultValue={entry.patient_id}>
-                        {patients.map((patient) => (
-                          <option key={patient.id} value={patient.id}>
-                            {patient.full_name}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        name="budget_id"
-                        defaultValue={entry.budget_id || ""}
-                      >
-                        <option value="">Orçamento</option>
-                        {budgets.map((budget) => (
-                          <option key={budget.id} value={budget.id}>
-                            {budget.id.slice(0, 8)}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        name="description"
-                        defaultValue={entry.description}
-                      />
-                      <input
-                        name="payment_method"
-                        defaultValue={entry.payment_method || ""}
-                      />
-                      <input
-                        name="due_date"
-                        type="date"
-                        defaultValue={entry.due_date || ""}
-                      />
-                      <input
-                        name="amount"
-                        defaultValue={String(entry.amount).replace(".", ",")}
-                      />
-                      <select name="status" defaultValue={entry.status}>
-                        {financeStatus.map((status) => (
-                          <option key={status} value={status}>
-                            {statusLabel(status)}
-                          </option>
-                        ))}
-                      </select>
-                      <SubmitButton label="Atualizar" />
-                    </form>
+                    <FinancialEntryForm entry={entry} patients={patients} budgets={budgets} />
                   </details>
                   <form action={remove} className="p-0 shadow-none">
                     <input type="hidden" name="id" value={entry.id} />
@@ -450,7 +439,7 @@ export default async function Page({
         <div className="grid gap-5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
           <form
             action={requestNfse}
-            className="space-y-4 rounded-xl border bg-white p-5 shadow-sm"
+            className="admin-form-card"
           >
             <div>
               <h3 className="text-xl font-bold">Emitir NFS-e</h3>
