@@ -193,6 +193,15 @@ export function AdminTopbarActions() {
               <strong>Ajuda e treinamento</strong>
               <button type='button' onClick={() => setHelpOpen(false)}>Fechar</button>
             </div>
+            <div className='admin-human-support-notice' role='note' aria-label='Atendimento humanizado'>
+              <strong>Atendimento humanizado</strong>
+              <p>
+                Os registros de tickets para atendimento humanizado devem ser realizados através da plataforma SelectSaaS.
+              </p>
+              <a href='https://www.selectsaas.com.br' target='_blank' rel='noopener noreferrer'>
+                https://www.selectsaas.com.br
+              </a>
+            </div>
             <div className='admin-help-training'>
               {HELP_TRAINING_SECTIONS.map(section => (
                 <article key={section.title}>
